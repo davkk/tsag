@@ -1,8 +1,8 @@
-#ifndef TSAG_QUERIES_H
-#define TSAG_QUERIES_H
+#ifndef QUERIES_H
+#define QUERIES_H
 #include <stddef.h>
 
-static const char TSAG_QUERY_cpp[] =
+static const char QUERY_cpp[] =
     "(function_definition declarator: (function_declarator declarator: (identifier) @name)) @kind.function\n"
     "(function_definition declarator: (function_declarator declarator: (qualified_identifier name: (_) @name))) @kind.function\n"
     "(class_specifier name: (type_identifier) @name) @kind.class\n"
@@ -19,7 +19,7 @@ static const char TSAG_QUERY_cpp[] =
     "(declaration declarator: (init_declarator declarator: (identifier) @name)) @kind.variable\n"
     ;
 
-static const char TSAG_QUERY_c[] =
+static const char QUERY_c[] =
     "(function_definition declarator: (function_declarator declarator: (identifier) @name)) @kind.function\n"
     "(struct_specifier name: (type_identifier) @name) @kind.struct\n"
     "(union_specifier name: (type_identifier) @name) @kind.union\n"
@@ -33,7 +33,7 @@ static const char TSAG_QUERY_c[] =
     "(declaration declarator: (init_declarator declarator: (identifier) @name)) @kind.variable\n"
     ;
 
-static const char TSAG_QUERY_python[] =
+static const char QUERY_python[] =
     "(function_definition name: (identifier) @name) @kind.function\n"
     "(class_definition name: (identifier) @name) @kind.class\n"
     "(module (expression_statement (assignment left: (identifier) @name) @kind.variable))\n"
@@ -47,10 +47,10 @@ static const struct {
     const char* lang;
     const char* source;
     size_t source_len;
-} TSAG_QUERIES[] = {
-    {"cpp", TSAG_QUERY_cpp, sizeof(TSAG_QUERY_cpp) - 1},
-    {"c", TSAG_QUERY_c, sizeof(TSAG_QUERY_c) - 1},
-    {"python", TSAG_QUERY_python, sizeof(TSAG_QUERY_python) - 1},
+} QUERIES[] = {
+    {"cpp", QUERY_cpp, sizeof(QUERY_cpp) - 1},
+    {"c", QUERY_c, sizeof(QUERY_c) - 1},
+    {"python", QUERY_python, sizeof(QUERY_python) - 1},
     {NULL, NULL, 0}
 };
 
