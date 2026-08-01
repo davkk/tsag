@@ -4,7 +4,7 @@
 IoQueue* io_queue_new(size_t cap) {
   IoQueue* q = calloc(1, sizeof(IoQueue));
   if (!q) return NULL;
-  q->buf = calloc(cap, sizeof(char*));
+  q->buf = calloc(cap, sizeof(void*));
   if (!q->buf) {
     free(q);
     return NULL;
@@ -25,7 +25,7 @@ void io_queue_free(IoQueue* q) {
   free(q);
 }
 
-void io_queue_put(IoQueue* q, const char* item) {
+void io_queue_put(IoQueue* q, void* item) {
   pthread_mutex_lock(&q->lock);
   while (q->count == q->cap) {                 // full?
     pthread_cond_wait(&q->not_full, &q->lock); // sleep, auto-unlock, re-lock on wake
@@ -39,7 +39,7 @@ void io_queue_put(IoQueue* q, const char* item) {
   pthread_mutex_unlock(&q->lock);
 }
 
-const char* io_queue_get(IoQueue* q) {
+void* io_queue_get(IoQueue* q) {
   pthread_mutex_lock(&q->lock);
   while (q->count == 0 && !q->closed) {         // empty and not done?
     pthread_cond_wait(&q->not_empty, &q->lock); // sleep
@@ -50,7 +50,7 @@ const char* io_queue_get(IoQueue* q) {
     return NULL;
   }
 
-  const char* item = q->buf[q->head];
+  void* item = q->buf[q->head];
   q->head = (q->head + 1) % q->cap;
   q->count--;
 

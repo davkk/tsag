@@ -6,7 +6,7 @@
 #include <stddef.h>
 
 typedef struct {
-  const char** buf;
+  void** buf;
   size_t head;
   size_t tail;
   size_t cap;
@@ -19,8 +19,8 @@ typedef struct {
 
 IoQueue* io_queue_new(size_t cap);
 void io_queue_free(IoQueue* q);
-void io_queue_put(IoQueue* q, const char* item);
-const char* io_queue_get(IoQueue* q);
+void io_queue_put(IoQueue* q, void* item);
+void* io_queue_get(IoQueue* q);
 void io_queue_close(IoQueue* q);
 
 #endif

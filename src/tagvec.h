@@ -46,7 +46,8 @@ static int compare_tags(const void* a, const void* b) {
   const Tag* ta = a;
   const Tag* tb = b;
   int cmp = strcmp(ta->name, tb->name);
-  return cmp || strcmp(ta->file, tb->file);
+  if (cmp != 0) return cmp;
+  return strcmp(ta->file, tb->file);
 }
 
 static inline void tag_vec_sort(TagVec* vec) {
