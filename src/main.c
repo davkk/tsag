@@ -4,7 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <tree_sitter/api.h>
+
+#include "queries.h"
 
 #define TSAG_MAX_LANGS 10
 
@@ -70,10 +73,10 @@ static TSAGLangEntry* load_lang(const char* dir, const char* lang) {
   entry->query = NULL;
   entry->name = NULL;
 
-  char so_path[64], q_path[64], sym[64];
+  char so_path[64], sym[64];
   void* lib = NULL;
+  const char* q_src = NULL;
   size_t q_len = 0;
-  char* q_src = NULL;
   TSQuery* query = NULL;
 
   snprintf(so_path, sizeof(so_path), "%s/%s.so", dir, lang);
@@ -93,17 +96,21 @@ static TSAGLangEntry* load_lang(const char* dir, const char* lang) {
   }
   entry->lang = tree_sitter_sym();
 
-  snprintf(q_path, sizeof(q_path), "queries/%s.scm", lang);
-  q_src = read_file(q_path, &q_len);
+  for (size_t i = 0; TSAG_QUERIES[i].lang; i++) {
+    if (strcmp(TSAG_QUERIES[i].lang, lang) == 0) {
+      q_src = TSAG_QUERIES[i].source;
+      q_len = TSAG_QUERIES[i].source_len;
+      break;
+    }
+  }
   if (!q_src) {
-    fprintf(stderr, "Failed to read query %s\n", q_path);
+    fprintf(stderr, "No embedded query for %s\n", lang);
     goto cleanup;
   }
 
   uint32_t error_offset = 0;
   TSQueryError error_type = TSQueryErrorNone;
   query = ts_query_new(entry->lang, q_src, (uint32_t)q_len, &error_offset, &error_type);
-  free(q_src);
   if (!query) {
     fprintf(stderr, "Query compile failed at offset %u (error %d)\n", error_offset,
             (int)error_type);
@@ -119,7 +126,6 @@ static TSAGLangEntry* load_lang(const char* dir, const char* lang) {
 cleanup:
   free(entry->name);
   ts_query_delete(query);
-  if (q_src) free(q_src);
   if (lib) dlclose(lib);
   free(entry);
   return NULL;
@@ -203,14 +209,14 @@ static void line_range(const char* src, size_t src_len, uint32_t start, const ch
 static int parse_file(const char* filepath, TSAGLangCache* cache, TSParser* parser, TSQueryCursor* cursor) {
   const char* dot = strrchr(filepath, '.');
   if (!dot) {
-    fprintf(stderr, "File does not have an extension: %s\n", filepath);
+    // fprintf(stderr, "File does not have an extension: %s\n", filepath);
     return 1;
   }
   const char* ext = dot + 1;
 
   const TSAGLangEntry* entry = lang_cache_get(cache, ext);
   if (!entry) {
-    fprintf(stderr, "No language for %s\n", filepath);
+    // fprintf(stderr, "No language for %s\n", filepath);
     return 1;
   }
 
@@ -222,7 +228,7 @@ static int parse_file(const char* filepath, TSAGLangCache* cache, TSParser* pars
   size_t src_len = 0;
   char* source = read_file(filepath, &src_len);
   if (!source) {
-    fprintf(stderr, "Failed to read %s\n", filepath);
+    // fprintf(stderr, "Failed to read %s\n", filepath);
     return 1;
   }
 
@@ -276,6 +282,113 @@ static int parse_file(const char* filepath, TSAGLangCache* cache, TSParser* pars
   return 0;
 }
 
+typedef struct {
+  const char** buf;
+  size_t head;
+  size_t tail;
+  size_t cap;
+  size_t count;
+  pthread_mutex_t lock;
+  pthread_cond_t not_full;
+  pthread_cond_t not_empty;
+  bool closed;
+} TSAGIoQueue;
+
+static TSAGIoQueue* io_queue_new(size_t cap) {
+  TSAGIoQueue* q = calloc(1, sizeof(TSAGIoQueue));
+  if (!q) return NULL;
+  q->buf = calloc(cap, sizeof(char*));
+  if (!q->buf) {
+    free(q);
+    return NULL;
+  }
+  q->cap = cap;
+  pthread_mutex_init(&q->lock, NULL);
+  pthread_cond_init(&q->not_full, NULL);
+  pthread_cond_init(&q->not_empty, NULL);
+  return q;
+}
+
+static void io_queue_free(TSAGIoQueue* q) {
+  if (!q) return;
+  free(q->buf);
+  pthread_mutex_destroy(&q->lock);
+  pthread_cond_destroy(&q->not_full);
+  pthread_cond_destroy(&q->not_empty);
+  free(q);
+}
+
+static void io_queue_put(TSAGIoQueue* q, const char* item) {
+  pthread_mutex_lock(&q->lock);
+  while (q->count == q->cap) {                 // full?
+    pthread_cond_wait(&q->not_full, &q->lock); // sleep, auto-unlock, re-lock on wake
+  }
+
+  q->buf[q->tail] = item;
+  q->tail = (q->tail + 1) % q->cap;
+  q->count++;
+
+  pthread_cond_signal(&q->not_empty); // wake ONE getter
+  pthread_mutex_unlock(&q->lock);
+}
+
+static const char* io_queue_get(TSAGIoQueue* q) {
+  pthread_mutex_lock(&q->lock);
+  while (q->count == 0 && !q->closed) {         // empty and not done?
+    pthread_cond_wait(&q->not_empty, &q->lock); // sleep
+  }
+
+  if (q->count == 0) { // closed + drained
+    pthread_mutex_unlock(&q->lock);
+    return NULL;
+  }
+
+  const char* item = q->buf[q->head];
+  q->head = (q->head + 1) % q->cap;
+  q->count--;
+
+  pthread_cond_signal(&q->not_full); // wake ONE putter
+  pthread_mutex_unlock(&q->lock);
+  return item;
+}
+
+static void io_queue_close(TSAGIoQueue* q) {
+  pthread_mutex_lock(&q->lock);
+  q->closed = true;
+  pthread_cond_broadcast(&q->not_empty); // wake ALL getters
+  pthread_mutex_unlock(&q->lock);
+}
+
+typedef struct {
+  TSAGIoQueue* q;
+  TSAGLangCache* cache;
+  int* exit_code;
+} TSAGWorkerArg;
+
+static void* worker(void* arg) {
+  TSAGWorkerArg* a = (TSAGWorkerArg*)arg;
+  TSParser* parser = ts_parser_new();
+  if (!parser) {
+    printf("Parser init failed\n");
+    return NULL;
+  }
+  TSQueryCursor* cursor = ts_query_cursor_new();
+  if (!cursor) {
+    printf("Cursor init failed\n");
+    ts_parser_delete(parser);
+    return NULL;
+  }
+
+  const char* path;
+  while ((path = io_queue_get(a->q)) != NULL)
+    if (parse_file(path, a->cache, parser, cursor) != 0)
+      *a->exit_code = 1;
+
+  ts_query_cursor_delete(cursor);
+  ts_parser_delete(parser);
+  return NULL;
+}
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     fprintf(stderr, "Usage: %s <file1> <file2> ... <fileN>\n", argv[0]);
@@ -291,28 +404,42 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  TSParser* parser = ts_parser_new();
-  if (!parser) {
-    fprintf(stderr, "Parser init failed\n");
-    return 1;
-  }
-
-  TSQueryCursor* cursor = ts_query_cursor_new();
-  if (!cursor) {
-    fprintf(stderr, "Cursor init failed\n");
-    ts_parser_delete(parser);
+  TSAGIoQueue* queue = io_queue_new(argc - 1);
+  if (!queue) {
+    fprintf(stderr, "io queue init failed\n");
     return 1;
   }
 
   for (int i = 1; i < argc; i++) {
     const char* filepath = argv[i];
     fprintf(stderr, "Processing %s\n", filepath);
-    int rc = parse_file(filepath, cache, parser, cursor);
-    if (rc) fprintf(stderr, "Failed to parse %s\n", filepath);
+    io_queue_put(queue, filepath);
+  }
+  io_queue_close(queue);
+
+  int n = sysconf(_SC_NPROCESSORS_ONLN) - 1;
+  if (n < 1) n = 1;
+
+  pthread_t threads[n];
+  int exit_code = 0;
+  TSAGWorkerArg arg = {queue, cache, &exit_code};
+
+  for (int i = 0; i < n; i++) {
+    int rc = pthread_create(&threads[i], NULL, worker, &arg);
+    if (rc) {
+      fprintf(stderr, "Failed to create thread %d\n", i);
+      return 1;
+    }
+  }
+  for (int i = 0; i < n; i++) {
+    int rc = pthread_join(threads[i], NULL);
+    if (rc) {
+      fprintf(stderr, "Failed to join thread %d\n", i);
+      return 1;
+    }
   }
 
-  ts_query_cursor_delete(cursor);
-  ts_parser_delete(parser);
+  io_queue_free(queue);
   lang_cache_free(cache);
-  return 0;
+  return exit_code;
 }
