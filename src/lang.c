@@ -125,14 +125,13 @@ void lang_cache_free(LangCache* cache) {
 const LangEntry* lang_cache_get(LangCache* cache, const char* ext) {
   const char* name = ext_to_lang(ext);
   if (!name) return NULL;
+
   pthread_mutex_lock(&cache->lock);
-  size_t i = 0;
-  for (i = 0; i < cache->entry_count; ++i) {
-    if (strcmp(cache->entries[i].name, name) == 0) break;
-  }
-  if (i < cache->entry_count) {
-    pthread_mutex_unlock(&cache->lock);
-    return &cache->entries[i];
+  for (size_t i = 0; i < cache->entry_count; ++i) {
+    if (strcmp(cache->entries[i].name, name) == 0) {
+      pthread_mutex_unlock(&cache->lock);
+      return &cache->entries[i];
+    }
   }
   if (cache->entry_count == MAX_LANGS) {
     pthread_mutex_unlock(&cache->lock);
@@ -145,10 +144,8 @@ const LangEntry* lang_cache_get(LangCache* cache, const char* ext) {
     pthread_mutex_unlock(&cache->lock);
     return NULL;
   }
-
   cache->entries[cache->entry_count++] = *tmp;
   free(tmp);
-
   pthread_mutex_unlock(&cache->lock);
   return &cache->entries[cache->entry_count - 1];
 }

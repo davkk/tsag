@@ -1,6 +1,7 @@
 #include "parse.h"
 #include "tagvec.h"
 
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +42,34 @@ static void line_range(const char* src, size_t src_len, uint32_t start, const ch
   *out_len = e - s;
 }
 
+static char* escape_pattern(const char* src, size_t len) {
+  char* dst = malloc(len * 2 + 1);
+  if (!dst) return NULL;
+  size_t w = 0;
+  for (size_t i = 0; i < len; i++) {
+    char c = src[i];
+    if (c == '\n' || c == '\r') break;
+    if (c == '\t') {
+      dst[w++] = '\\';
+      dst[w++] = 't';
+      continue;
+    }
+    if (c == '\\' || c == '/') {
+      dst[w++] = '\\';
+      dst[w++] = c;
+      continue;
+    }
+    if (c == '$' && i + 1 == len) {
+      dst[w++] = '\\';
+      dst[w++] = '$';
+      continue;
+    }
+    dst[w++] = c;
+  }
+  dst[w] = '\0';
+  return dst;
+}
+
 int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor,
                TagVec* vec) {
   const char* dot = strrchr(filepath, '.');
@@ -73,7 +102,6 @@ int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQuery
   }
 
   TSNode root = ts_tree_root_node(tree);
-  ts_query_cursor_set_max_start_depth(cursor, 1);
   ts_query_cursor_exec(cursor, entry->query, root);
 
   TSQueryMatch match;
@@ -104,10 +132,21 @@ int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQuery
       }
     }
 
+    if (name_len == 0 || content_len == 0 || !kind[0]) continue;
+
+    bool bad_name = false;
+    for (size_t k = 0; k < name_len; k++) {
+      if (!isprint((unsigned char)name[k])) { bad_name = true; break; }
+    }
+    if (bad_name) continue;
+
+    char* pattern = escape_pattern(content, content_len);
+    if (!pattern) continue;
+
     Tag tag = {
-        .name = strndup(name, name_len), // points into source, need copy
+        .name = strndup(name, name_len),
         .file = filepath,
-        .pattern = strndup(content, content_len), // points into source, need copy
+        .pattern = pattern,
         .kind = kind,
     };
     tag_vec_push(vec, &tag);

@@ -7,21 +7,21 @@ incremental updates from the README goals.
 
 ## Phase 1 - Multi-language, still single-threaded
 
-- [x] T1: `LanguageCache` - mutex + map keyed by extension, holding
+- [ ] T1: `LanguageCache` - mutex + map keyed by extension, holding
   `DynLib` handle + `*TSLanguage` + `*TSQuery`. Load once per
   language; reads are lock-free on hit.
-- [x] T2: Extension -> language mapping for c, cpp, python,
+- [ ] T2: Extension -> language mapping for c, cpp, python,
   javascript.
-- [x] T3: Per-language query files (`tags-c.scm`, `tags-cpp.scm`,
+- [ ] T3: Per-language query files (`tags-c.scm`, `tags-cpp.scm`,
   `tags-py.scm`, `tags-js.scm`) co-located with the `.so`; retire
   `src/tags.scm`.
-- [x] T4: Configurable parser directory via env var
+- [ ] T4: Configurable parser directory via env var
   (`TSAG_GRAMMARS`) with `./parsers/` as default. Remove the
   hardcoded nvim path at `src/main.c:8`.
-- [x] T5: Refactor `parse_file` to take the cache; switch parser
+- [ ] T5: Refactor `parse_file` to take the cache; switch parser
   only when the language changes (same-lang fast path, per
   ARCHITECTURE worker lifecycle).
-- [x] T6: Loop over `argv[1..]` for multiple inputs; unknown
+- [ ] T6: Loop over `argv[1..]` for multiple inputs; unknown
   extensions are a no-op (cache miss returns null).
 
 ## Phase 2 - File discovery

@@ -16,7 +16,6 @@ typedef struct {
   IoQueue* q;
   IoQueue* outq;
   LangCache* cache;
-  int* exit_code;
 } WorkerArg;
 
 typedef struct {
@@ -28,12 +27,12 @@ static void* worker(void* arg) {
   WorkerArg* a = (WorkerArg*)arg;
   TSParser* parser = ts_parser_new();
   if (!parser) {
-    printf("Parser init failed\n");
+    fprintf(stderr, "Parser init failed\n");
     return NULL;
   }
   TSQueryCursor* cursor = ts_query_cursor_new();
   if (!cursor) {
-    printf("Cursor init failed\n");
+    fprintf(stderr, "Cursor init failed\n");
     ts_parser_delete(parser);
     return NULL;
   }
@@ -42,7 +41,7 @@ static void* worker(void* arg) {
 
   const char* path;
   while ((path = (const char*)io_queue_get(a->q)) != NULL) {
-    if (parse_file(path, a->cache, parser, cursor, vec) != 0) *a->exit_code = 1;
+    parse_file(path, a->cache, parser, cursor, vec);
   }
 
   tag_vec_sort(vec);
@@ -107,7 +106,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int n = sysconf(_SC_NPROCESSORS_ONLN) - 1;
+  int n = sysconf(_SC_NPROCESSORS_ONLN) - 2;
   if (n < 1) n = 1;
 
   IoQueue* queue = io_queue_new(argc - 1);
@@ -129,8 +128,7 @@ int main(int argc, char** argv) {
   io_queue_close(queue);
 
   pthread_t threads[n];
-  int exit_code = 0;
-  WorkerArg arg = {queue, out_queue, cache, &exit_code};
+  WorkerArg arg = {queue, out_queue, cache};
 
   for (int i = 0; i < n; i++) {
     int rc = pthread_create(&threads[i], NULL, worker, &arg);
@@ -157,5 +155,5 @@ int main(int argc, char** argv) {
   io_queue_free(out_queue);
   io_queue_free(queue);
   lang_cache_free(cache);
-  return exit_code;
+  return 0;
 }
