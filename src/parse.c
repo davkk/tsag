@@ -70,6 +70,13 @@ static char* escape_pattern(const char* src, size_t len) {
   return dst;
 }
 
+static void tag_vec_free_tag(Tag* tag) {
+  free(tag->name);
+  free(tag->pattern);
+  tag->name = NULL;
+  tag->pattern = NULL;
+}
+
 int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor,
                TagVec* vec) {
   const char* dot = strrchr(filepath, '.');
@@ -104,6 +111,15 @@ int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQuery
   TSNode root = ts_tree_root_node(tree);
   ts_query_cursor_exec(cursor, entry->query, root);
 
+  typedef struct {
+    uint32_t start;
+    uint32_t end;
+    uint32_t pattern;
+    size_t idx;
+  } SeenName;
+  SeenName seen[1024];
+  size_t seen_count = 0;
+
   TSQueryMatch match;
   while (ts_query_cursor_next_match(cursor, &match)) {
     const char* name = "";
@@ -111,6 +127,8 @@ int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQuery
     const char* kind = "";
     const char* content = "";
     size_t content_len = 0;
+    uint32_t name_start = 0;
+    uint32_t name_end = 0;
 
     for (uint16_t i = 0; i < match.capture_count; i++) {
       TSQueryCapture cap = match.captures[i];
@@ -118,10 +136,10 @@ int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQuery
       const char* cn = ts_query_capture_name_for_id(entry->query, cap.index, &cn_len);
 
       if (cn_len == 4 && memcmp(cn, "name", 4) == 0) {
-        uint32_t a = ts_node_start_byte(cap.node);
-        uint32_t b = ts_node_end_byte(cap.node);
-        name = source + a;
-        name_len = b - a;
+        name_start = ts_node_start_byte(cap.node);
+        name_end = ts_node_end_byte(cap.node);
+        name = source + name_start;
+        name_len = name_end - name_start;
       } else if (cn_len > 5 && memcmp(cn, "kind.", 5) == 0) {
         kind = cn + 5;
         const char* line;
@@ -136,7 +154,10 @@ int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQuery
 
     bool bad_name = false;
     for (size_t k = 0; k < name_len; k++) {
-      if (!isprint((unsigned char)name[k])) { bad_name = true; break; }
+      if (!isprint((unsigned char)name[k])) {
+        bad_name = true;
+        break;
+      }
     }
     if (bad_name) continue;
 
@@ -149,7 +170,31 @@ int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQuery
         .pattern = pattern,
         .kind = kind,
     };
-    tag_vec_push(vec, &tag);
+
+    size_t tag_idx = vec->size;
+    for (size_t k = 0; k < seen_count; k++) {
+      if (seen[k].start == name_start && seen[k].end == name_end) {
+        if (match.pattern_index <= seen[k].pattern) {
+          tag_vec_free_tag(&tag);
+          goto next_match;
+        }
+        tag_idx = seen[k].idx;
+        seen[k].pattern = match.pattern_index;
+        break;
+      }
+    }
+
+    if (tag_idx == vec->size) {
+      if (seen_count < 1024) {
+        seen[seen_count++] = (SeenName){name_start, name_end, match.pattern_index, vec->size};
+      }
+      tag_vec_push(vec, &tag);
+    } else {
+      tag_vec_free_tag(&vec->tags[tag_idx]);
+      vec->tags[tag_idx] = tag;
+    }
+
+  next_match:;
   }
 
   ts_tree_delete(tree);

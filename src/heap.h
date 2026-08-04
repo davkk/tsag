@@ -2,6 +2,7 @@
 #define TSAG_HEAP_H
 
 #include "tagvec.h"
+#include <stdbool.h>
 
 typedef struct {
   size_t batch;

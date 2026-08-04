@@ -91,6 +91,15 @@ static void* merge(void* arg) {
   return NULL;
 }
 
+// change the default behavior to incremental:
+// - store source trees cache somewhere?
+//   - also: I have to have some sort of internal repr that I can easily insert into in order
+//   - and then just generate the og tags file from it on-demand
+// - detect if tags file exists
+// - find lines with tags from that file
+//   - remove them?
+//   - reparse the file and add the new tags in order?
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     fprintf(stderr, "Usage: %s <file1> <file2> ... <fileN>\n", argv[0]);
