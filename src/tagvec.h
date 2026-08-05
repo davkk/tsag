@@ -17,6 +17,9 @@ typedef struct {
   size_t size;
   size_t capacity;
   Tag* tags;
+  char** paths;
+  size_t path_count;
+  size_t path_cap;
 } TagVec;
 
 static inline TagVec* tag_vec_new(size_t cap) {
@@ -30,7 +33,22 @@ static inline TagVec* tag_vec_new(size_t cap) {
     free(vec);
     return NULL;
   }
+  vec->path_cap = 64;
+  vec->paths = calloc(vec->path_cap, sizeof(char*));
+  if (!vec->paths) {
+    free(vec->tags);
+    free(vec);
+    return NULL;
+  }
   return vec;
+}
+
+static inline void tag_vec_add_path(TagVec* vec, char* path) {
+  if (vec->path_count == vec->path_cap) {
+    vec->path_cap *= 2;
+    vec->paths = realloc(vec->paths, vec->path_cap * sizeof(char*));
+  }
+  vec->paths[vec->path_count++] = path;
 }
 
 static inline void tag_vec_push(TagVec* vec, const Tag* tag) {
@@ -61,6 +79,10 @@ static inline void tag_vec_free(TagVec* vec) {
     free(vec->tags[i].name);
     free(vec->tags[i].pattern);
   }
+  for (size_t i = 0; i < vec->path_count; i++) {
+    free(vec->paths[i]);
+  }
+  free(vec->paths);
   free(vec->tags);
   free(vec);
 }

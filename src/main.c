@@ -1,8 +1,12 @@
+#include <dirent.h>
+#include <errno.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <tree_sitter/api.h>
 #include <unistd.h>
 
@@ -11,6 +15,8 @@
 #include "lang.h"
 #include "parse.h"
 #include "tagvec.h"
+
+#define QUEUE_CAPACITY 256
 
 typedef struct {
   IoQueue* q;
@@ -39,8 +45,8 @@ static void* worker(void* arg) {
 
   TagVec* vec = tag_vec_new(128);
 
-  const char* path;
-  while ((path = (const char*)io_queue_get(a->q)) != NULL) {
+  char* path;
+  while ((path = (char*)io_queue_get(a->q)) != NULL) {
     parse_file(path, a->cache, parser, cursor, vec);
   }
 
@@ -91,25 +97,43 @@ static void* merge(void* arg) {
   return NULL;
 }
 
-// change the default behavior to incremental:
-// - store source trees cache somewhere?
-//   - also: I have to have some sort of internal repr that I can easily insert into in order
-//   - and then just generate the og tags file from it on-demand
-// - detect if tags file exists
-// - find lines with tags from that file
-//   - remove them?
-//   - reparse the file and add the new tags in order?
+static void enqueue_path(IoQueue* queue, const char* path) {
+  struct stat info;
+  if (lstat(path, &info) == -1) {
+    fprintf(stderr, "failed to stat '%s': %s\n", path, strerror(errno));
+    return;
+  }
+  if (S_ISDIR(info.st_mode)) {
+    DIR* dir = opendir(path);
+    if (dir == NULL) {
+      fprintf(stderr, "failed to open directory: %s\n", path);
+      return;
+    }
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+      if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+        size_t len = strlen(path) + 1 + strlen(entry->d_name) + 1;
+        char* fullpath = malloc(len);
+        if (strcmp(path, ".") == 0) {
+          strcpy(fullpath, entry->d_name);
+        } else {
+          snprintf(fullpath, len, "%s/%s", path, entry->d_name);
+        }
+        enqueue_path(queue, fullpath);
+        free(fullpath);
+      }
+    }
+    closedir(dir);
+  } else if (S_ISREG(info.st_mode)) {
+    io_queue_put(queue, strdup(path));
+  }
+}
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
-    fprintf(stderr, "Usage: %s <file1> <file2> ... <fileN>\n", argv[0]);
-    return 1;
-  }
+  const char* grammars_dir = getenv("TSAG_GRAMMARS");
+  if (!grammars_dir || !*grammars_dir) grammars_dir = "/home/davkk/.local/share/nvim/site/parser/";
 
-  const char* dir = getenv("TSAG_GRAMMARS");
-  if (!dir || !*dir) dir = "/home/davkk/.local/share/nvim/site/parser/";
-
-  LangCache* cache = lang_cache_new(dir);
+  LangCache* cache = lang_cache_new(grammars_dir);
   if (!cache) {
     fprintf(stderr, "cache init failed\n");
     return 1;
@@ -118,7 +142,7 @@ int main(int argc, char** argv) {
   int n = sysconf(_SC_NPROCESSORS_ONLN) - 2;
   if (n < 1) n = 1;
 
-  IoQueue* queue = io_queue_new(argc - 1);
+  IoQueue* queue = io_queue_new(QUEUE_CAPACITY);
   if (!queue) {
     fprintf(stderr, "io queue init failed\n");
     return 1;
@@ -130,12 +154,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  for (int i = 1; i < argc; i++) {
-    const char* filepath = argv[i];
-    io_queue_put(queue, (void*)filepath);
-  }
-  io_queue_close(queue);
-
   pthread_t threads[n];
   WorkerArg arg = {queue, out_queue, cache};
 
@@ -146,6 +164,15 @@ int main(int argc, char** argv) {
       return 1;
     }
   }
+
+  if (argc == 1) {
+    enqueue_path(queue, ".");
+  } else {
+    for (int i = 1; i < argc; i++) {
+      enqueue_path(queue, argv[i]);
+    }
+  }
+  io_queue_close(queue);
 
   MergeArg merge_arg = {out_queue, n};
   pthread_t merge_thread;

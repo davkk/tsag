@@ -77,8 +77,9 @@ static void tag_vec_free_tag(Tag* tag) {
   tag->pattern = NULL;
 }
 
-int parse_file(const char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor,
+int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor,
                TagVec* vec) {
+  tag_vec_add_path(vec, filepath);
   const char* dot = strrchr(filepath, '.');
   if (!dot) {
     return 1;
