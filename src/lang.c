@@ -12,7 +12,7 @@ const struct {
   const char* name;
 } EXT_LANG[] = {{"c", "c"},           {"h", "cpp"},     {"cpp", "cpp"}, {"cc", "cpp"},
                 {"hpp", "cpp"},       {"py", "python"}, {"lua", "lua"}, {"js", "javascript"},
-                {"ts", "typescript"}, {"zig", "zig"}};
+                {"ts", "typescript"}, {"zig", "zig"},   {"rs", "rust"}, {"go", "go"}};
 
 static const char* ext_to_lang(const char* ext) {
   for (size_t i = 0; i < sizeof(EXT_LANG) / sizeof(EXT_LANG[0]); i++) {

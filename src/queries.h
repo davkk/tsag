@@ -193,6 +193,37 @@ static const char QUERY_zig[] =
     "(variable_declaration (identifier) @name (union_declaration)) @kind.type\n"
     "(variable_declaration (identifier) @name (error_set_declaration)) @kind.type\n"
     ;
+static const char QUERY_rust[] =
+    "(function_item name: (identifier) @name) @kind.function\n"
+    "(function_signature_item name: (identifier) @name) @kind.function\n"
+    "(struct_item name: (type_identifier) @name body: (_)) @kind.struct\n"
+    "(enum_item name: (type_identifier) @name body: (_)) @kind.enum\n"
+    "(trait_item name: (type_identifier) @name body: (_)) @kind.interface\n"
+    "(impl_item type: (type_identifier) @name body: (_)) @kind.class\n"
+    "(impl_item body: (declaration_list (function_item name: (identifier) @name) @kind.method))\n"
+    "(mod_item name: (identifier) @name) @kind.namespace\n"
+    "(type_item name: (type_identifier) @name) @kind.alias\n"
+    "(const_item name: (identifier) @name) @kind.constant\n"
+    "(static_item name: (identifier) @name) @kind.variable\n"
+    "(macro_definition name: (identifier) @name) @kind.macro\n"
+    "(enum_variant name: (identifier) @name) @kind.enumerator\n"
+    "(field_declaration name: (field_identifier) @name) @kind.member\n"
+    "(use_declaration argument: (scoped_identifier name: (identifier) @name)) @kind.namespace\n"
+    ;
+static const char QUERY_go[] =
+    "(package_clause name: (package_identifier) @name) @kind.namespace\n"
+    "(import_declaration (import_spec path: (interpreted_string_literal_content) @name)) @kind.namespace\n"
+    "(source_file (const_declaration (const_spec name: (identifier) @name)) @kind.constant)\n"
+    "(source_file (var_declaration (var_spec name: (identifier) @name)) @kind.variable)\n"
+    "(type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @kind.struct\n"
+    "(type_declaration (type_spec name: (type_identifier) @name type: (interface_type))) @kind.interface\n"
+    "(type_declaration (type_spec name: (type_identifier) @name type: (_))) @kind.typedef\n"
+    "(type_alias name: (type_identifier) @name) @kind.alias\n"
+    "(field_declaration name: (field_identifier) @name) @kind.member\n"
+    "(function_declaration name: (identifier) @name) @kind.function\n"
+    "(method_declaration name: (field_identifier) @name) @kind.method\n"
+    "(interface_type (method_elem name: (field_identifier) @name)) @kind.method\n"
+    ;
 
 static const struct {
     const char* lang;
@@ -206,6 +237,8 @@ static const struct {
     {"javascript", QUERY_javascript, sizeof(QUERY_javascript) - 1},
     {"typescript", QUERY_typescript, sizeof(QUERY_typescript) - 1},
     {"zig", QUERY_zig, sizeof(QUERY_zig) - 1},
+    {"rust", QUERY_rust, sizeof(QUERY_rust) - 1},
+    {"go", QUERY_go, sizeof(QUERY_go) - 1},
     {NULL, NULL, 0}
 };
 
