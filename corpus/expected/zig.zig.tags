@@ -1,0 +1,95 @@
+AliasInt	corpus/zig.zig	/^const AliasInt = u32;$/;"	variable
+Bare	corpus/zig.zig	/^const Bare = union {$/;"	type
+C	corpus/zig.zig	/^const C = @import("c.zig");$/;"	variable
+Deep	corpus/zig.zig	/^    pub const Deep = struct {$/;"	type
+Errors	corpus/zig.zig	/^const Errors = error{$/;"	type
+Errors	corpus/zig.zig	/^    const e: Errors = error.NotFound;$/;"	variable
+Ext	corpus/zig.zig	/^const Ext = extern struct {$/;"	type
+NS	corpus/zig.zig	/^const NS = struct {$/;"	type
+OpaqueH	corpus/zig.zig	/^const OpaqueH = opaque {};$/;"	variable
+PUB_CONST	corpus/zig.zig	/^pub const PUB_CONST: u8 = 7;$/;"	variable
+Packed	corpus/zig.zig	/^const Packed = packed struct {$/;"	type
+Point	corpus/zig.zig	/^const Point = struct {$/;"	type
+PtrAlias	corpus/zig.zig	/^const PtrAlias = *Point;$/;"	variable
+SliceAlias	corpus/zig.zig	/^const SliceAlias = []const u8;$/;"	variable
+Status	corpus/zig.zig	/^const Status = enum(u8) {$/;"	type
+Tagged	corpus/zig.zig	/^const Tagged = union(enum) {$/;"	type
+WrapInt	corpus/zig.zig	/^const WrapInt = struct { v: u32 };$/;"	type
+_	corpus/zig.zig	/^    _ = v;$/;"	variable
+_	corpus/zig.zig	/^    _ = args;$/;"	variable
+_	corpus/zig.zig	/^        _ = self;$/;"	variable
+_	corpus/zig.zig	/^        _ = self;$/;"	variable
+_	corpus/zig.zig	/^    _ = NS.inner_const;$/;"	variable
+_	corpus/zig.zig	/^    _ = e;$/;"	variable
+a	corpus/zig.zig	/^    a: u4,$/;"	field
+a	corpus/zig.zig	/^    pair: struct { a: u32, b: u32 },$/;"	field
+a	corpus/zig.zig	/^    a: u32,$/;"	field
+any_arr	corpus/zig.zig	/^const any_arr = [_]u8{ 1, 2, 3 };$/;"	variable
+args	corpus/zig.zig	/^    _ = args;$/;"	variable
+b	corpus/zig.zig	/^    b: u4,$/;"	field
+b	corpus/zig.zig	/^    pair: struct { a: u32, b: u32 },$/;"	field
+b	corpus/zig.zig	/^    b: f32,$/;"	field
+bar	corpus/zig.zig	/^fn bar(v: u32) u32 {$/;"	function
+buf	corpus/zig.zig	/^    buf: [256]u8,$/;"	field
+builtin	corpus/zig.zig	/^const builtin = @import("builtin");$/;"	variable
+cb	corpus/zig.zig	/^    cb: ?*const fn (u32) void = null,$/;"	field
+comptime_counter	corpus/zig.zig	/^var comptime_counter: u32 = 0;$/;"	variable
+comptime_counter	corpus/zig.zig	/^    comptime_counter = 1;$/;"	variable
+deep_fn	corpus/zig.zig	/^        pub fn deep_fn() void {}$/;"	function
+defer_demo	corpus/zig.zig	/^fn defer_demo() void {$/;"	function
+e	corpus/zig.zig	/^    const e: Errors = error.NotFound;$/;"	variable
+e	corpus/zig.zig	/^    _ = e;$/;"	variable
+err	corpus/zig.zig	/^    err,$/;"	field
+errors	corpus/zig.zig	/^test "errors" {$/;"	function
+export_fn	corpus/zig.zig	/^export fn export_fn(v: c_int) void {$/;"	function
+fd	corpus/zig.zig	/^    fd: c_int,$/;"	field
+flag	corpus/zig.zig	/^    flag: bool = true,$/;"	field
+float	corpus/zig.zig	/^    float: f64,$/;"	field
+foo	corpus/zig.zig	/^fn foo() void {}$/;"	function
+generic_max	corpus/zig.zig	/^fn generic_max(comptime T: type, a: T, b: T) T {$/;"	function
+gpa	corpus/zig.zig	/^    var gpa = std.heap.GeneralPurposeAllocator(.{}){};$/;"	variable
+helper	corpus/zig.zig	/^    pub fn helper() void {}$/;"	function
+hidden	corpus/zig.zig	/^    fn hidden(self: Point) void {$/;"	function
+inferred	corpus/zig.zig	/^const inferred = 42;$/;"	variable
+inl	corpus/zig.zig	/^inline fn inl(v: u32) u32 {$/;"	function
+inner_const	corpus/zig.zig	/^    pub const inner_const = 1;$/;"	variable
+int	corpus/zig.zig	/^    int: u32,$/;"	field
+is_int	corpus/zig.zig	/^    pub fn is_int(self: Tagged) bool {$/;"	function
+main	corpus/zig.zig	/^pub fn main() !void {$/;"	function
+maybe_null	corpus/zig.zig	/^const maybe_null: ?u32 = null;$/;"	variable
+my test	corpus/zig.zig	/^test "my test" {$/;"	function
+n	corpus/zig.zig	/^    const n = bar(41);$/;"	variable
+name	corpus/zig.zig	/^    name: []const u8 = "p",$/;"	field
+named_test_fn	corpus/zig.zig	/^test "named_test_fn" {$/;"	function
+no_ret	corpus/zig.zig	/^fn no_ret() noreturn {$/;"	function
+none	corpus/zig.zig	/^    none,$/;"	field
+norm	corpus/zig.zig	/^    pub fn norm(self: Point) f32 {$/;"	function
+nx	corpus/zig.zig	/^        self.x = nx;$/;"	variable
+ny	corpus/zig.zig	/^        self.y = ny;$/;"	variable
+ok	corpus/zig.zig	/^    ok,$/;"	field
+pair	corpus/zig.zig	/^    pair: struct { a: u32, b: u32 },$/;"	field
+pending	corpus/zig.zig	/^    pending = 5,$/;"	field
+pub_counter	corpus/zig.zig	/^pub var pub_counter: usize = 0;$/;"	variable
+pub_fn	corpus/zig.zig	/^pub fn pub_fn(a: []const u8) !usize {$/;"	function
+self	corpus/zig.zig	/^        _ = self;$/;"	variable
+self	corpus/zig.zig	/^        _ = self;$/;"	variable
+set	corpus/zig.zig	/^    pub fn set(self: *Point, nx: u32, ny: u32) void {$/;"	function
+std	corpus/zig.zig	/^const std = @import("std");$/;"	variable
+std	corpus/zig.zig	/^const std_alias = std;$/;"	variable
+std_alias	corpus/zig.zig	/^const std_alias = std;$/;"	variable
+t	corpus/zig.zig	/^    var t = Point{ .x = 1 };$/;"	variable
+tls_count	corpus/zig.zig	/^threadlocal var tls_count: u32 = 0;$/;"	variable
+typed_arr	corpus/zig.zig	/^const typed_arr: [4]u8 = .{ 1, 2, 3, 4 };$/;"	variable
+uninit	corpus/zig.zig	/^var uninit: u32 = undefined;$/;"	variable
+uses_ns	corpus/zig.zig	/^pub fn uses_ns() void {$/;"	function
+v	corpus/zig.zig	/^    _ = v;$/;"	variable
+v	corpus/zig.zig	/^const WrapInt = struct { v: u32 };$/;"	field
+variadic_like	corpus/zig.zig	/^fn variadic_like(args: anytype) void {$/;"	function
+with_align	corpus/zig.zig	/^const with_align: u32 align(16) = 0;$/;"	variable
+with_err	corpus/zig.zig	/^fn with_err() anyerror!u32 {$/;"	function
+with_fn_ptr	corpus/zig.zig	/^fn with_fn_ptr(cb: *const fn (u32) u32, v: u32) u32 {$/;"	function
+with_link	corpus/zig.zig	/^const with_link: u8 linksection(".meta") = 0;$/;"	variable
+x	corpus/zig.zig	/^const x: u32 = 1;$/;"	variable
+x	corpus/zig.zig	/^    x: u32,$/;"	field
+y	corpus/zig.zig	/^var y: u32 = 2;$/;"	variable
+y	corpus/zig.zig	/^    y: u32 = 0,$/;"	field

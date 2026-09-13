@@ -75,4 +75,7 @@ The only switch-specific costs are:
 - Workers are interchangeable -- no affinity needed.
 - New languages: add extension mapping + `.so` path. No dispatch
   changes.
-- Trivially scalable: one queue, N workers, N = `getCpuCount()`.
+- Trivially scalable: one queue, N workers, N = `cores - 2`
+  (`src/main.c:142`). The decision still holds at 9 languages with
+  lazy per-language loading -- switching cost stays negligible and no
+  dispatch changes were needed for new languages.

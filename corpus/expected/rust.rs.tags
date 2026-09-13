@@ -1,0 +1,81 @@
+Attr	corpus/rust.rs	/^pub struct Attr {$/;"	struct
+COUNTER	corpus/rust.rs	/^pub static mut COUNTER: i32 = 0;$/;"	variable
+CRATE_CONST	corpus/rust.rs	/^pub(crate) const CRATE_CONST: u8 = 2;$/;"	constant
+CRATE_STATIC	corpus/rust.rs	/^pub(crate) static CRATE_STATIC: bool = true;$/;"	variable
+Cb	corpus/rust.rs	/^pub type Cb = fn(u32) -> u32;$/;"	alias
+Code	corpus/rust.rs	/^    Code(u16) = 100,$/;"	enumerator
+CrateAlias	corpus/rust.rs	/^pub(crate) type CrateAlias<T> = Vec<T>;$/;"	alias
+Err	corpus/rust.rs	/^    Err(String),$/;"	enumerator
+Generic	corpus/rust.rs	/^pub struct Generic<T, U = String> {$/;"	struct
+GenericE	corpus/rust.rs	/^pub enum GenericE<T> {$/;"	enum
+HashMap	corpus/rust.rs	/^use std::collections::HashMap;$/;"	namespace
+INTERNAL	corpus/rust.rs	/^static INTERNAL: u64 = 9;$/;"	variable
+Id	corpus/rust.rs	/^pub type Id = u64;$/;"	alias
+MAX	corpus/rust.rs	/^pub const MAX: u32 = 100;$/;"	constant
+MSG	corpus/rust.rs	/^pub const MSG: &str = "hi";$/;"	constant
+Map	corpus/rust.rs	/^pub type Map<K, V = String> = HashMap<K, V>;$/;"	alias
+Moved	corpus/rust.rs	/^    Moved { x: i32, y: i32 },$/;"	enumerator
+NAME	corpus/rust.rs	/^pub static NAME: &str = "tsag";$/;"	variable
+None	corpus/rust.rs	/^    None,$/;"	enumerator
+ORIGIN	corpus/rust.rs	/^    pub const ORIGIN: Point = Point { x: 0.0, y: 0.0, hidden: false };$/;"	constant
+Ok	corpus/rust.rs	/^    Ok,$/;"	enumerator
+Output	corpus/rust.rs	/^    type Output = f64;$/;"	alias
+PRIVATE_CONST	corpus/rust.rs	/^const PRIVATE_CONST: i32 = -1;$/;"	constant
+Point	corpus/rust.rs	/^pub struct Point {$/;"	struct
+Point	corpus/rust.rs	/^impl Point {$/;"	class
+Point	corpus/rust.rs	/^impl Shape for Point {$/;"	class
+Point	corpus/rust.rs	/^impl fmt::Display for Point {$/;"	class
+SHADOW	corpus/rust.rs	/^    pub const SHADOW: u32 = 1;$/;"	constant
+SIDES	corpus/rust.rs	/^    const SIDES: u32;$/;"	constant
+SIDES	corpus/rust.rs	/^    const SIDES: u32 = 0;$/;"	constant
+Shape	corpus/rust.rs	/^pub trait Shape {$/;"	interface
+Some	corpus/rust.rs	/^    Some(T),$/;"	enumerator
+Status	corpus/rust.rs	/^pub enum Status {$/;"	enum
+Tuple	corpus/rust.rs	/^pub struct Tuple(pub u32, String);$/;"	struct
+UnsafeM	corpus/rust.rs	/^pub unsafe trait UnsafeM {}$/;"	interface
+add	corpus/rust.rs	/^pub fn add(a: i32, b: i32) -> i32 {$/;"	function
+area	corpus/rust.rs	/^    fn area(&self) -> f64;$/;"	function
+area	corpus/rust.rs	/^    fn area(&self) -> f64 {$/;"	method
+c_callback	corpus/rust.rs	/^extern "C" fn c_callback(v: i32) {}$/;"	function
+const_add	corpus/rust.rs	/^pub const fn const_add(a: u32, b: u32) -> u32 {$/;"	function
+dangerous	corpus/rust.rs	/^pub unsafe fn dangerous(x: *mut u8) {}$/;"	function
+deep	corpus/rust.rs	/^        pub fn deep() {}$/;"	function
+diverging	corpus/rust.rs	/^pub fn diverging(msg: &str) -> ! {$/;"	function
+f	corpus/rust.rs	/^    pub fn f() {}$/;"	function
+fetch	corpus/rust.rs	/^pub async fn fetch(url: &str) -> Result<String, std::io::Error> {$/;"	function
+first	corpus/rust.rs	/^    pub first: T,$/;"	member
+fmt	corpus/rust.rs	/^    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {$/;"	method
+generic_id	corpus/rust.rs	/^pub fn generic_id<T>(x: T) -> T {$/;"	function
+generic_m	corpus/rust.rs	/^    fn generic_m<T: Display>(&self, x: T) -> String;$/;"	function
+generic_m	corpus/rust.rs	/^    fn generic_m<T: Display>(&self, x: T) -> String {$/;"	method
+get	corpus/rust.rs	/^    pub fn get(&self) -> &T {$/;"	method
+helper	corpus/rust.rs	/^    pub fn helper() -> u32 {$/;"	function
+hidden	corpus/rust.rs	/^    hidden: bool,$/;"	member
+impl_trait_arg	corpus/rust.rs	/^pub fn impl_trait_arg(x: impl Display) -> String {$/;"	function
+inner	corpus/rust.rs	/^pub mod inner {$/;"	namespace
+internal	corpus/rust.rs	/^fn internal() {}$/;"	function
+it_adds	corpus/rust.rs	/^    fn it_adds() {$/;"	function
+local_macro	corpus/rust.rs	/^macro_rules! local_macro {$/;"	macro
+main	corpus/rust.rs	/^fn main() {$/;"	function
+my_macro	corpus/rust.rs	/^macro_rules! my_macro {$/;"	macro
+name	corpus/rust.rs	/^    fn name(&self) -> String {$/;"	function
+nested	corpus/rust.rs	/^    pub(crate) mod nested {$/;"	namespace
+nested_fn	corpus/rust.rs	/^    fn nested_fn() -> u32 {$/;"	function
+new	corpus/rust.rs	/^    pub fn new(x: f64, y: f64) -> Self {$/;"	method
+norm	corpus/rust.rs	/^    pub fn norm(&self) -> f64 {$/;"	method
+plain_mod	corpus/rust.rs	/^mod plain_mod {$/;"	namespace
+private_fn	corpus/rust.rs	/^    fn private_fn() {}$/;"	function
+raw	corpus/rust.rs	/^    pub unsafe fn raw(&self) -> *const Point {$/;"	method
+refresh	corpus/rust.rs	/^    pub async fn refresh(&self) {}$/;"	method
+reset	corpus/rust.rs	/^    fn reset(&mut self) {}$/;"	method
+second	corpus/rust.rs	/^    pub second: U,$/;"	member
+set	corpus/rust.rs	/^    pub fn set(&mut self, x: f64, y: f64) {}$/;"	method
+tests	corpus/rust.rs	/^mod tests {$/;"	namespace
+uses_macro	corpus/rust.rs	/^pub fn uses_macro() -> u32 {$/;"	function
+v	corpus/rust.rs	/^    pub v: u32,$/;"	member
+with_lifetime	corpus/rust.rs	/^pub fn with_lifetime<'a>(x: &'a str) -> &'a str {$/;"	function
+with_where	corpus/rust.rs	/^pub fn with_where<T>(x: T) -> T$/;"	function
+x	corpus/rust.rs	/^    pub x: f64,$/;"	member
+x	corpus/rust.rs	/^    Moved { x: i32, y: i32 },$/;"	member
+y	corpus/rust.rs	/^    pub y: f64,$/;"	member
+y	corpus/rust.rs	/^    Moved { x: i32, y: i32 },$/;"	member

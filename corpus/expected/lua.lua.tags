@@ -1,0 +1,20 @@
+bar	corpus/lua.lua	/^function M.bar()$/;"	function
+baz	corpus/lua.lua	/^function M.baz(a, b)$/;"	function
+baz_method	corpus/lua.lua	/^function M:baz_method(a)$/;"	function
+chained	corpus/lua.lua	/^function obj.sub:chained()$/;"	function
+colon_only	corpus/lua.lua	/^function MOD:colon_only(x, y)$/;"	function
+deep	corpus/lua.lua	/^function a.b.c.deep()$/;"	function
+foo	corpus/lua.lua	/^function foo()$/;"	function
+in_else_branch	corpus/lua.lua	/^  function in_else_branch()$/;"	function
+in_elseif_branch	corpus/lua.lua	/^  function in_elseif_branch()$/;"	function
+in_if_branch	corpus/lua.lua	/^  function in_if_branch()$/;"	function
+inner_fn	corpus/lua.lua	/^  local function inner_fn()$/;"	function
+inner_with_args	corpus/lua.lua	/^  local function inner_with_args(p)$/;"	function
+multi_ret	corpus/lua.lua	/^function multi_ret()$/;"	function
+new	corpus/lua.lua	/^function Point.new(x, y)$/;"	function
+norm	corpus/lua.lua	/^function Point:norm()$/;"	function
+outer_fn	corpus/lua.lua	/^function outer_fn()$/;"	function
+qux	corpus/lua.lua	/^local function qux()$/;"	function
+vargs	corpus/lua.lua	/^function vargs(a, ...)$/;"	function
+with_body	corpus/lua.lua	/^local function with_body(n)$/;"	function
+with_params	corpus/lua.lua	/^function with_params(a, b, c)$/;"	function

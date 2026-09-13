@@ -1,0 +1,62 @@
+DefaultExported	corpus/javascript.js	/^export default class DefaultExported {}$/;"	class
+Exported	corpus/javascript.js	/^export class Exported extends MyClass {$/;"	class
+Generic_like	corpus/javascript.js	/^class Generic_like {}$/;"	class
+MyClass	corpus/javascript.js	/^class MyClass {$/;"	class
+PI	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+agen	corpus/javascript.js	/^async function* agen() { yield 1; }$/;"	generator
+arrow	corpus/javascript.js	/^const arrow = () => {};$/;"	function
+arrow_prop	corpus/javascript.js	/^  arrow_prop: () => {},$/;"	property
+asyncGenMethod	corpus/javascript.js	/^  async *asyncGenMethod() {}$/;"	generator
+asyncMethod	corpus/javascript.js	/^  async asyncMethod() {}$/;"	method
+async_arrow	corpus/javascript.js	/^const async_arrow = async (x) => x * 2;$/;"	function
+async_m	corpus/javascript.js	/^  async async_m() {},$/;"	method
+block_fn	corpus/javascript.js	/^  function block_fn() {}$/;"	function
+bound	corpus/javascript.js	/^  bound = () => this.field;$/;"	field
+cond_fn	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+constructor	corpus/javascript.js	/^  constructor(name) { this.name = name; }$/;"	method
+counter	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+create	corpus/javascript.js	/^  static create() { return new MyClass(); }$/;"	method
+deep_method	corpus/javascript.js	/^  nested: { deep_method() {} },$/;"	method
+defaultFn	corpus/javascript.js	/^export default function defaultFn() {}$/;"	function
+dynamic	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+exported_fn	corpus/javascript.js	/^export function exported_fn(x, y = 2, ...rest) { return x; }$/;"	function
+expr_paren	corpus/javascript.js	/^const expr_paren = (a, b) => a + b;$/;"	function
+extracted	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+fetchData	corpus/javascript.js	/^async function fetchData(url) { return url; }$/;"	function
+field	corpus/javascript.js	/^  field = 42;$/;"	field
+first	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+fn_expr	corpus/javascript.js	/^let fn_expr = function () {};$/;"	function
+foo	corpus/javascript.js	/^function foo() {}$/;"	function
+g	corpus/javascript.js	/^  get g() { return 1; },$/;"	getter
+gen	corpus/javascript.js	/^function* gen() { yield 1; yield 2; }$/;"	generator
+genMethod	corpus/javascript.js	/^  *genMethod() {}$/;"	generator
+gen_m	corpus/javascript.js	/^  *gen_m() {},$/;"	generator
+hoisted	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+instance	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+legacy	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+local_const	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+method	corpus/javascript.js	/^  method() {}$/;"	method
+method	corpus/javascript.js	/^  method() {},$/;"	method
+multi_a	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+multi_b	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+mutable	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+name	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+named_expr	corpus/javascript.js	/^var named_expr = function helper() {};$/;"	function
+nested	corpus/javascript.js	/^  nested: { deep_method() {} },$/;"	property
+obj	corpus/javascript.js	/^const obj = {$/;"	variable
+obj_arrow_holder	corpus/javascript.js	/^const obj_arrow_holder = { run: async () => 1 };$/;"	variable
+overridden	corpus/javascript.js	/^  overridden() {}$/;"	method
+plain	corpus/javascript.js	/^  plain: 1,$/;"	property
+re	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+run	corpus/javascript.js	/^const obj_arrow_holder = { run: async () => 1 };$/;"	property
+s	corpus/javascript.js	/^  set s(v) {},$/;"	setter
+second	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+shadowed	corpus/javascript.js	/^function shadowed(a, a) { return a; }$/;"	function
+static_field	corpus/javascript.js	/^  static static_field = 1;$/;"	field
+v_destr	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+v_x	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+v_y	corpus/javascript.js	/^import def from ".\/def.js";$/;"	variable
+value	corpus/javascript.js	/^  get value() { return this._v; }$/;"	getter
+value	corpus/javascript.js	/^  set value(v) { this._v = v; }$/;"	setter
+with_template	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant
+years	corpus/javascript.js	/^import def from ".\/def.js";$/;"	constant

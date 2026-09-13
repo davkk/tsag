@@ -1,0 +1,63 @@
+Area	corpus/go.go	/^type Shape interface {$/;"	method
+BlockTyped	corpus/go.go	/^const BlockTyped string = "x"$/;"	constant
+Box	corpus/go.go	/^type Box[T any] struct {$/;"	struct
+C	corpus/go.go	/^import ($/;"	namespace
+ChanAlias	corpus/go.go	/^type ChanAlias chan int$/;"	typedef
+Err	corpus/go.go	/^const ($/;"	constant
+Fatal	corpus/go.go	/^const ($/;"	constant
+First	corpus/go.go	/^\tFirst  A$/;"	member
+Get	corpus/go.go	/^func (b Box[T]) Get() T {$/;"	method
+Handler	corpus/go.go	/^type Handler func(req *Request) error$/;"	typedef
+Id	corpus/go.go	/^type Id = int64$/;"	alias
+Ints	corpus/go.go	/^type Ints []int$/;"	typedef
+List	corpus/go.go	/^type List[T any] []T$/;"	typedef
+M	corpus/go.go	/^type Simple interface {$/;"	method
+Mapping	corpus/go.go	/^type Mapping map[string]int$/;"	typedef
+Next	corpus/go.go	/^\tNext *Point$/;"	member
+Next	corpus/go.go	/^\tNext  *Box[T]$/;"	member
+Norm	corpus/go.go	/^func (p Point) Norm() float64 {$/;"	method
+Ok	corpus/go.go	/^const ($/;"	constant
+Ordered	corpus/go.go	/^type Ordered interface {$/;"	interface
+Pair	corpus/go.go	/^type Pair[A, B any] struct {$/;"	struct
+Point	corpus/go.go	/^type Point struct {$/;"	struct
+Second	corpus/go.go	/^\tSecond B$/;"	member
+Set	corpus/go.go	/^func (p *Point) Set(x, y float64) {$/;"	method
+Shape	corpus/go.go	/^type Shape interface {$/;"	interface
+Simple	corpus/go.go	/^type Simple interface {$/;"	interface
+Status	corpus/go.go	/^type Status int$/;"	typedef
+StatusAlias	corpus/go.go	/^type StatusAlias = Status$/;"	alias
+StrA	corpus/go.go	/^const ($/;"	constant
+StrAlias	corpus/go.go	/^type StrAlias = string$/;"	alias
+StrB	corpus/go.go	/^const ($/;"	constant
+String	corpus/go.go	/^type Shape interface {$/;"	method
+String	corpus/go.go	/^func (s Status) String() string { return "s" }$/;"	method
+Tags	corpus/go.go	/^\tTags [4]string$/;"	member
+Value	corpus/go.go	/^\tValue T `json:"value"`$/;"	member
+X	corpus/go.go	/^\tX float64 `json:"x"`$/;"	member
+Y	corpus/go.go	/^\tY float64 `json:"y,omitempty"`$/;"	member
+_	corpus/go.go	/^const ($/;"	constant
+_	corpus/go.go	/^var _ = 0$/;"	variable
+a	corpus/go.go	/^import ($/;"	namespace
+add	corpus/go.go	/^func add(a, b int) int {$/;"	function
+b	corpus/go.go	/^import ($/;"	namespace
+fmt	corpus/go.go	/^import ($/;"	namespace
+genericMap	corpus/go.go	/^func genericMap[T, U any](in []T, f func(T) U) []U {$/;"	function
+globalVar	corpus/go.go	/^var globalVar = 1$/;"	variable
+hidden	corpus/go.go	/^\thidden *int `json:"-"`$/;"	member
+init	corpus/go.go	/^func init() {$/;"	function
+main	corpus/go.go	/^package main$/;"	namespace
+main	corpus/go.go	/^func main() {$/;"	function
+math	corpus/go.go	/^import ($/;"	namespace
+maxCount	corpus/go.go	/^const maxCount = 100$/;"	constant
+multi	corpus/go.go	/^func multi(a, b int, s string) (int, error) {$/;"	function
+name	corpus/go.go	/^\tname string$/;"	member
+namedRet	corpus/go.go	/^func namedRet(a int) (x, y int) {$/;"	function
+net/http/pprof	corpus/go.go	/^import ($/;"	namespace
+setup	corpus/go.go	/^func setup() {}$/;"	function
+strconv	corpus/go.go	/^import ($/;"	namespace
+strings	corpus/go.go	/^import ($/;"	namespace
+typedConst	corpus/go.go	/^const typedConst int = 7$/;"	constant
+typedVar	corpus/go.go	/^var typedVar string = "s"$/;"	variable
+usesLocals	corpus/go.go	/^func usesLocals() int {$/;"	function
+variadicSum	corpus/go.go	/^func variadicSum(xs ...int) int {$/;"	function
+withConstraint	corpus/go.go	/^func withConstraint[T Ordered](v T) T { return v }$/;"	function

@@ -1,0 +1,73 @@
+ANON_A	corpus/c.c	/^enum { ANON_A, ANON_B = 100 };$/;"	enumerator
+ANON_B	corpus/c.c	/^enum { ANON_A, ANON_B = 100 };$/;"	enumerator
+COLOR_ALPHA	corpus/c.c	/^  COLOR_ALPHA = 1 << 7,$/;"	enumerator
+COLOR_BLUE	corpus/c.c	/^  COLOR_BLUE,$/;"	enumerator
+COLOR_GREEN	corpus/c.c	/^  COLOR_GREEN = 10,$/;"	enumerator
+COLOR_MASK	corpus/c.c	/^  COLOR_MASK = COLOR_RED | COLOR_BLUE,$/;"	enumerator
+COLOR_RED	corpus/c.c	/^  COLOR_RED,$/;"	enumerator
+COLOR_TRAILING	corpus/c.c	/^  COLOR_TRAILING,$/;"	enumerator
+CONCAT	corpus/c.c	/^#define CONCAT(a, b) a##b$/;"	macro
+Color	corpus/c.c	/^enum Color {$/;"	enum
+Color_alias	corpus/c.c	/^typedef enum Color Color_alias;$/;"	typedef
+EMPTY	corpus/c.c	/^#define EMPTY$/;"	macro
+EMPTY_DUMMY	corpus/c.c	/^enum Empty_sentinel { EMPTY_DUMMY };$/;"	enumerator
+EXPR	corpus/c.c	/^#define EXPR(a, b) ((a) + (b))$/;"	macro
+Empty_sentinel	corpus/c.c	/^enum Empty_sentinel { EMPTY_DUMMY };$/;"	enum
+GUARD_VAR	corpus/c.c	/^#define GUARD_VAR 1$/;"	macro
+Inner	corpus/c.c	/^  struct Inner {$/;"	struct
+K_and_R	corpus/c.c	/^int K_and_R(a, b) int a; int b; { return a + b; }$/;"	function
+MAX	corpus/c.c	/^#define MAX(a, b) ((a) > (b) ? (a) : (b))$/;"	macro
+MIN3	corpus/c.c	/^#define MIN3(a, b, c) (MAX(MIN(a, b), MIN(b, c)))$/;"	macro
+MULTILINE_SUM	corpus/c.c	/^#define MULTILINE_SUM(a, b) \\$/;"	macro
+NEGATIVE	corpus/c.c	/^#define NEGATIVE (-1)$/;"	macro
+Outer	corpus/c.c	/^struct Outer {$/;"	struct
+Point	corpus/c.c	/^struct Point {$/;"	struct
+Point_alias	corpus/c.c	/^typedef struct Point Point_alias;$/;"	typedef
+SIMPLE_CONST	corpus/c.c	/^#define SIMPLE_CONST 42$/;"	macro
+STRINGIFY	corpus/c.c	/^#define STRINGIFY(x) #x$/;"	macro
+STR_VERSION	corpus/c.c	/^#define STR_VERSION "1.2.3"$/;"	macro
+UNUSED	corpus/c.c	/^#define UNUSED(x) (void)(x)$/;"	macro
+VARIADIC	corpus/c.c	/^#define VARIADIC(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)$/;"	macro
+VA_OPT_SUM	corpus/c.c	/^#define VA_OPT_SUM(...) sum_all(__VA_ARGS__, 0)$/;"	macro
+Value	corpus/c.c	/^union Value {$/;"	union
+WithMembers	corpus/c.c	/^struct WithMembers {$/;"	struct
+acount	corpus/c.c	/^  _Atomic int acount;$/;"	member
+add	corpus/c.c	/^int add(int a, int b) { return a + b; }$/;"	function
+alloc_int	corpus/c.c	/^int *alloc_int(void) {$/;"	function
+anon	corpus/c.c	/^  struct {$/;"	member
+anon_a	corpus/c.c	/^    int anon_a;$/;"	member
+anon_b	corpus/c.c	/^    int anon_b;$/;"	member
+argv	corpus/c.c	/^  char **argv;$/;"	member
+both	corpus/c.c	/^static inline int both(int x) { return x; }$/;"	function
+buf	corpus/c.c	/^  int buf[256];$/;"	member
+bytes	corpus/c.c	/^  char bytes[8];$/;"	member
+d	corpus/c.c	/^  double d;$/;"	member
+data	corpus/c.c	/^  union {$/;"	member
+deep	corpus/c.c	/^    int deep;$/;"	member
+die	corpus/c.c	/^__attribute__((noreturn)) void die(const char *msg) {$/;"	function
+f	corpus/c.c	/^    float f;$/;"	member
+fast_inc	corpus/c.c	/^inline int fast_inc(int x) { return x + 1; }$/;"	function
+fixed	corpus/c.c	/^  const char *const fixed;$/;"	member
+fixed_str	corpus/c.c	/^char *const fixed_str(void) {$/;"	function
+flags	corpus/c.c	/^  unsigned flags : 3;$/;"	member
+g_feature_x	corpus/c.c	/^int g_feature_x = 1;$/;"	variable
+g_should_not_appear	corpus/c.c	/^int g_should_not_appear = 0;$/;"	variable
+g_use_a	corpus/c.c	/^int g_use_a = 1;$/;"	variable
+helper_static	corpus/c.c	/^static int helper_static(int x) { return x * 2; }$/;"	function
+i	corpus/c.c	/^    int i;$/;"	member
+i	corpus/c.c	/^  int i;$/;"	member
+inner	corpus/c.c	/^  struct Inner {$/;"	member
+name	corpus/c.c	/^  char *name;$/;"	member
+nested	corpus/c.c	/^  struct Point nested;$/;"	member
+plain	corpus/c.c	/^  int plain;$/;"	member
+plain_void	corpus/c.c	/^void plain_void(void) {}$/;"	function
+ptr	corpus/c.c	/^  void *ptr;$/;"	member
+takes_array	corpus/c.c	/^void takes_array(int arr[4], int m[4][4]) { UNUSED(arr); UNUSED(m); }$/;"	function
+takes_fnptr	corpus/c.c	/^void takes_fnptr(cmp_fn_t cmp, void *base) { UNUSED(cmp); UNUSED(base); }$/;"	function
+u	corpus/c.c	/^  union Value u;$/;"	member
+ulong_t	corpus/c.c	/^typedef unsigned long ulong_t;$/;"	typedef
+variadic_sum	corpus/c.c	/^int variadic_sum(int n, ...) {$/;"	function
+vcount	corpus/c.c	/^  volatile int vcount;$/;"	member
+with_locals	corpus/c.c	/^int with_locals(int n) {$/;"	function
+x	corpus/c.c	/^  int x;$/;"	member
+y	corpus/c.c	/^  int y;$/;"	member

@@ -1,0 +1,79 @@
+Blue	corpus/cpp.cpp	/^enum class Color : unsigned char { Red, Green = 10, Blue };$/;"	enumerator
+Box	corpus/cpp.cpp	/^template <typename T> class Box {$/;"	class
+Circle	corpus/cpp.cpp	/^class Circle : public Shape {$/;"	class
+Circle	corpus/cpp.cpp	/^Circle::Circle(double r) : radius_(r) {}$/;"	function
+Color	corpus/cpp.cpp	/^enum class Color : unsigned char { Red, Green = 10, Blue };$/;"	enum
+Comparable	corpus/cpp.cpp	/^struct Comparable {$/;"	struct
+Direction	corpus/cpp.cpp	/^enum struct Direction { North, South, East, West };$/;"	enum
+East	corpus/cpp.cpp	/^enum struct Direction { North, South, East, West };$/;"	enumerator
+Empty	corpus/cpp.cpp	/^class Empty {};$/;"	class
+Final	corpus/cpp.cpp	/^class Final final {$/;"	class
+Green	corpus/cpp.cpp	/^enum class Color : unsigned char { Red, Green = 10, Blue };$/;"	enumerator
+InNs	corpus/cpp.cpp	/^class InNs {$/;"	class
+KAnswer	corpus/cpp.cpp	/^constexpr int KAnswer = 42;$/;"	variable
+MAX2	corpus/cpp.cpp	/^#define MAX2(a, b) ((a) > (b) ? (a) : (b))$/;"	macro
+NS_MACRO	corpus/cpp.cpp	/^#define NS_MACRO 100$/;"	macro
+North	corpus/cpp.cpp	/^enum struct Direction { North, South, East, West };$/;"	enumerator
+PA	corpus/cpp.cpp	/^enum Plain { PA, PB = 5, PC };$/;"	enumerator
+PB	corpus/cpp.cpp	/^enum Plain { PA, PB = 5, PC };$/;"	enumerator
+PC	corpus/cpp.cpp	/^enum Plain { PA, PB = 5, PC };$/;"	enumerator
+Plain	corpus/cpp.cpp	/^enum Plain { PA, PB = 5, PC };$/;"	enum
+PlainStruct	corpus/cpp.cpp	/^struct PlainStruct {$/;"	struct
+Red	corpus/cpp.cpp	/^enum class Color : unsigned char { Red, Green = 10, Blue };$/;"	enumerator
+Shape	corpus/cpp.cpp	/^class Shape {$/;"	class
+Shape	corpus/cpp.cpp	/^Shape::Shape() {}$/;"	function
+South	corpus/cpp.cpp	/^enum struct Direction { North, South, East, West };$/;"	enumerator
+West	corpus/cpp.cpp	/^enum struct Direction { North, South, East, West };$/;"	enumerator
+Word	corpus/cpp.cpp	/^union Word {$/;"	union
+alloc_cpp	corpus/cpp.cpp	/^int *alloc_cpp(int n) { return new int[n]; }$/;"	function
+anon_ns_var	corpus/cpp.cpp	/^int anon_ns_var = 4;$/;"	variable
+area	corpus/cpp.cpp	/^double Circle::area() const { return 3.14 * radius_ * radius_; }$/;"	function
+b	corpus/cpp.cpp	/^  char b[4];$/;"	member
+buf_	corpus/cpp.cpp	/^  int buf_[16];$/;"	member
+cache_hits	corpus/cpp.cpp	/^  mutable int cache_hits = 0;$/;"	member
+deep_var	corpus/cpp.cpp	/^int deep_var = 2;$/;"	variable
+done	corpus/cpp.cpp	/^  void done() {}$/;"	function
+f	corpus/cpp.cpp	/^  float f;$/;"	member
+free_add	corpus/cpp.cpp	/^int free_add(int a, int b) { return a + b; }$/;"	function
+free_add	corpus/cpp.cpp	/^int free_add(int a, int b, int c) { return a + b + c; }$/;"	function
+g_inline_var	corpus/cpp.cpp	/^inline int g_inline_var = 7;$/;"	variable
+g_ns_tls	corpus/cpp.cpp	/^thread_local int g_ns_tls = 0;$/;"	variable
+g_use_cpp_a	corpus/cpp.cpp	/^int g_use_cpp_a = 1;$/;"	variable
+g_with_extra	corpus/cpp.cpp	/^int g_with_extra = 1;$/;"	variable
+get	corpus/cpp.cpp	/^  T get() const { return value_; }$/;"	function
+hello	corpus/cpp.cpp	/^void InNs::hello() {}$/;"	function
+i	corpus/cpp.cpp	/^  int i;$/;"	member
+id	corpus/cpp.cpp	/^  const int id = 0;$/;"	member
+inline_ns_var	corpus/cpp.cpp	/^int inline_ns_var = 3;$/;"	variable
+inner	corpus/cpp.cpp	/^namespace inner {$/;"	namespace
+instances	corpus/cpp.cpp	/^  static int instances;$/;"	member
+label_	corpus/cpp.cpp	/^  char *label_;$/;"	member
+live_count	corpus/cpp.cpp	/^  static int live_count;$/;"	member
+main	corpus/cpp.cpp	/^int main(int argc, char **argv) {$/;"	function
+may_throw	corpus/cpp.cpp	/^int may_throw(int x) noexcept(false) { return x; }$/;"	function
+name_	corpus/cpp.cpp	/^  std::string name_;$/;"	member
+no_throw	corpus/cpp.cpp	/^int no_throw(int x) noexcept { return x; }$/;"	function
+ns_fn	corpus/cpp.cpp	/^int ns_fn(int x) { return x + NS_MACRO; }$/;"	function
+ns_var	corpus/cpp.cpp	/^int ns_var = 1;$/;"	variable
+outer	corpus/cpp.cpp	/^namespace outer {$/;"	namespace
+radius	corpus/cpp.cpp	/^double Circle::radius() const { return radius_; }$/;"	function
+radius_	corpus/cpp.cpp	/^  double radius_;$/;"	member
+reset	corpus/cpp.cpp	/^void PlainStruct::reset() { x = y = 0; }$/;"	function
+secret_	corpus/cpp.cpp	/^  int secret_ : 4;$/;"	member
+set	corpus/cpp.cpp	/^  void set(const T &v) { value_; }$/;"	function
+sink_fn	corpus/cpp.cpp	/^void sink_fn(int (&arr)[4]) { (void)arr; }$/;"	function
+size_alias_t	corpus/cpp.cpp	/^typedef unsigned long size_alias_t;$/;"	typedef
+square	corpus/cpp.cpp	/^constexpr int square(int x) { return x * x; }$/;"	function
+str_vec_fn	corpus/cpp.cpp	/^using str_vec_fn = std::string (*)(int);$/;"	typedef
+tmax	corpus/cpp.cpp	/^template <typename T> T tmax(T a, T b) { return a > b ? a : b; }$/;"	function
+trailing_ret	corpus/cpp.cpp	/^auto trailing_ret(int x) -> int { return x * 2; }$/;"	function
+v	corpus/cpp.cpp	/^  int v;$/;"	member
+v2	corpus/cpp.cpp	/^inline namespace v2 {$/;"	namespace
+value_	corpus/cpp.cpp	/^  T value_;$/;"	member
+vec_int	corpus/cpp.cpp	/^using vec_int = std::vector<int>;$/;"	typedef
+vsum	corpus/cpp.cpp	/^template <typename T, typename... Rest> T vsum(T a, Rest... rest) {$/;"	function
+vsum	corpus/cpp.cpp	/^int vsum(int x) { return x; }$/;"	function
+with_defaults	corpus/cpp.cpp	/^int with_defaults(int a, int b = 2, const std::string &s = "x") {$/;"	function
+x	corpus/cpp.cpp	/^  int x;$/;"	member
+y	corpus/cpp.cpp	/^  int y;$/;"	member
+~Shape	corpus/cpp.cpp	/^Shape::~Shape() {}$/;"	function

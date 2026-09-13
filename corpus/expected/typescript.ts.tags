@@ -1,0 +1,99 @@
+A	corpus/typescript.ts	/^enum MyEnum { A, B, C }$/;"	enumerator
+AbstractBase	corpus/typescript.ts	/^abstract class AbstractBase {$/;"	class
+AmbientEnum	corpus/typescript.ts	/^declare enum AmbientEnum { P, Q }$/;"	enum
+B	corpus/typescript.ts	/^enum MyEnum { A, B, C }$/;"	enumerator
+Box	corpus/typescript.ts	/^class Box<T> {$/;"	class
+C	corpus/typescript.ts	/^enum MyEnum { A, B, C }$/;"	enumerator
+Cond	corpus/typescript.ts	/^type Cond<T> = T extends string ? number : never;$/;"	alias
+ConstEnum	corpus/typescript.ts	/^const enum ConstEnum { X, Y }$/;"	enum
+Deep	corpus/typescript.ts	/^  export namespace Deep {$/;"	namespace
+Extends	corpus/typescript.ts	/^interface Extends extends MyInterface {$/;"	interface
+FnAlias	corpus/typescript.ts	/^type FnAlias = (a: number) => string;$/;"	alias
+FnT	corpus/typescript.ts	/^type FnT = (x: number) => void;$/;"	alias
+GenericBox	corpus/typescript.ts	/^type GenericBox<T> = { value: T };$/;"	alias
+GenericI	corpus/typescript.ts	/^interface GenericI<T, U = string> {$/;"	interface
+Impl	corpus/typescript.ts	/^class Impl extends AbstractBase implements MyInterface {$/;"	class
+InNs	corpus/typescript.ts	/^  export class InNs {$/;"	class
+InferEx	corpus/typescript.ts	/^type InferEx<T> = T extends (infer U)[] ? U : T;$/;"	alias
+Mapped	corpus/typescript.ts	/^type Mapped<T> = { [K in keyof T]: T[K] };$/;"	alias
+Mixed	corpus/typescript.ts	/^enum Mixed { N = 1, S = "s", Computed = 1 + 2 }$/;"	enum
+MyClass	corpus/typescript.ts	/^class MyClass {$/;"	class
+MyEnum	corpus/typescript.ts	/^enum MyEnum { A, B, C }$/;"	enum
+MyInterface	corpus/typescript.ts	/^interface MyInterface {$/;"	interface
+MyNamespace	corpus/typescript.ts	/^namespace MyNamespace {$/;"	namespace
+MyType	corpus/typescript.ts	/^type MyType = string | number;$/;"	alias
+NUM	corpus/typescript.ts	/^export const NUM: number = 1;$/;"	constant
+Only	corpus/typescript.ts	/^enum Single { Only }$/;"	enumerator
+P	corpus/typescript.ts	/^declare enum AmbientEnum { P, Q }$/;"	enumerator
+Q	corpus/typescript.ts	/^declare enum AmbientEnum { P, Q }$/;"	enumerator
+Single	corpus/typescript.ts	/^enum Single { Only }$/;"	enum
+StrEnum	corpus/typescript.ts	/^enum StrEnum { Up = "UP", Down = "DOWN" }$/;"	enum
+T	corpus/typescript.ts	/^    export type T = number;$/;"	alias
+Tpl	corpus/typescript.ts	/^type Tpl<A extends string> = `get-${A}`;$/;"	alias
+Union	corpus/typescript.ts	/^type Union = "a" | "b" | 42;$/;"	alias
+Window	corpus/typescript.ts	/^  interface Window {$/;"	interface
+WithAbstractSig	corpus/typescript.ts	/^abstract class WithAbstractSig {$/;"	class
+WithIndex	corpus/typescript.ts	/^class WithIndex {$/;"	class
+X	corpus/typescript.ts	/^const enum ConstEnum { X, Y }$/;"	enumerator
+Y	corpus/typescript.ts	/^const enum ConstEnum { X, Y }$/;"	enumerator
+__flag	corpus/typescript.ts	/^  interface Window {$/;"	property
+am	corpus/typescript.ts	/^class MyClass {$/;"	method
+arrow_t	corpus/typescript.ts	/^const arrow_t = (x: number): number => x;$/;"	constant
+async_arrow_t	corpus/typescript.ts	/^const async_arrow_t = async (x: number): Promise<number> => x;$/;"	constant
+concrete	corpus/typescript.ts	/^abstract class AbstractBase {$/;"	method
+constrained	corpus/typescript.ts	/^function constrained<T extends { len: number }>(x: T): number { return x.len; }$/;"	function
+constructor	corpus/typescript.ts	/^class MyClass {$/;"	method
+constructor	corpus/typescript.ts	/^class Box<T> {$/;"	method
+d0	corpus/typescript.ts	/^const [d0, ...drest]: number[] = nums;$/;"	constant
+defaultFn	corpus/typescript.ts	/^export default function defaultFn(): void {}$/;"	function
+extra	corpus/typescript.ts	/^interface Extends extends MyInterface {$/;"	property
+fetchIt	corpus/typescript.ts	/^async function fetchIt(url: string): Promise<string> { return url; }$/;"	function
+field	corpus/typescript.ts	/^  field: number = 42;$/;"	property
+first	corpus/typescript.ts	/^interface GenericI<T, U = string> {$/;"	property
+flag	corpus/typescript.ts	/^import def, { named } from ".\/m.js";$/;"	variable
+fn_var	corpus/typescript.ts	/^import def, { named } from ".\/m.js";$/;"	variable
+foo	corpus/typescript.ts	/^function foo(a: string, b?: number, ...rest: string[]): void {}$/;"	function
+foo	corpus/typescript.ts	/^abstract class WithAbstractSig {$/;"	method
+gen	corpus/typescript.ts	/^function* gen(): Generator<number> { yield 1; }$/;"	generator
+generic_id	corpus/typescript.ts	/^function generic_id<T>(x: T): T { return x; }$/;"	function
+generic_m	corpus/typescript.ts	/^interface MyInterface {$/;"	method
+get	corpus/typescript.ts	/^class Box<T> {$/;"	method
+gm	corpus/typescript.ts	/^class MyClass {$/;"	generator
+inner	corpus/typescript.ts	/^  export function inner(): void {}$/;"	function
+inner	corpus/typescript.ts	/^  export function inner(): void {}$/;"	function
+label	corpus/typescript.ts	/^abstract class AbstractBase {$/;"	method
+label	corpus/typescript.ts	/^class Impl extends AbstractBase implements MyInterface {$/;"	method
+local_c	corpus/typescript.ts	/^const local_c: string = "s";$/;"	constant
+m	corpus/typescript.ts	/^  export class InNs {$/;"	method
+make	corpus/typescript.ts	/^class MyClass {$/;"	method
+method	corpus/typescript.ts	/^interface MyInterface {$/;"	method
+method	corpus/typescript.ts	/^class MyClass {$/;"	method
+method	corpus/typescript.ts	/^class Impl extends AbstractBase implements MyInterface {$/;"	method
+normal	corpus/typescript.ts	/^  normal = 1;$/;"	property
+nv	corpus/typescript.ts	/^  export const nv = 1;$/;"	constant
+old	corpus/typescript.ts	/^import def, { named } from ".\/m.js";$/;"	variable
+opt	corpus/typescript.ts	/^interface MyInterface {$/;"	property
+optional	corpus/typescript.ts	/^  optional?: number;$/;"	property
+overloaded	corpus/typescript.ts	/^function overloaded(x: unknown): void {}$/;"	function
+overloaded_m	corpus/typescript.ts	/^class MyClass {$/;"	method
+overloaded_m	corpus/typescript.ts	/^class MyClass {$/;"	method
+overloaded_m	corpus/typescript.ts	/^class MyClass {$/;"	method
+priv	corpus/typescript.ts	/^  private priv = 0;$/;"	property
+prop	corpus/typescript.ts	/^interface MyInterface {$/;"	property
+prop	corpus/typescript.ts	/^  prop = "p";$/;"	property
+prot	corpus/typescript.ts	/^  protected prot?: string;$/;"	property
+render	corpus/typescript.ts	/^abstract class AbstractBase {$/;"	method
+render	corpus/typescript.ts	/^class Impl extends AbstractBase implements MyInterface {$/;"	method
+rid	corpus/typescript.ts	/^  readonly rid = 7;$/;"	property
+ro	corpus/typescript.ts	/^interface MyInterface {$/;"	property
+ro	corpus/typescript.ts	/^  ro = 1;$/;"	property
+second	corpus/typescript.ts	/^interface GenericI<T, U = string> {$/;"	property
+sfield	corpus/typescript.ts	/^  static sfield = 1;$/;"	property
+takes_box	corpus/typescript.ts	/^function takes_box(b: Box<string>): string { return b.get(); }$/;"	function
+tname	corpus/typescript.ts	/^const { tname, tage = 3 }: { tname: string; tage?: number } = val;$/;"	constant
+tx	corpus/typescript.ts	/^import def, { named } from ".\/m.js";$/;"	variable
+ty	corpus/typescript.ts	/^import def, { named } from ".\/m.js";$/;"	variable
+v	corpus/typescript.ts	/^class MyClass {$/;"	method
+v	corpus/typescript.ts	/^class MyClass {$/;"	method
+with_types	corpus/typescript.ts	/^export function with_types(a: number, b: string = "d"): number { return a; }$/;"	function
+x	corpus/typescript.ts	/^  const x: number;$/;"	constant

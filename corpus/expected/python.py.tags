@@ -1,0 +1,66 @@
+CONSTANT	corpus/python.py	/^CONSTANT = 1$/;"	variable
+DataLike	corpus/python.py	/^class DataLike:$/;"	class
+DecoratedClass	corpus/python.py	/^class DecoratedClass:$/;"	class
+EXPECTED	corpus/python.py	/^EXPECTED = [m for m in [1, 2] if m]$/;"	variable
+MultiLine	corpus/python.py	/^class MultiLine($/;"	class
+NestedClass	corpus/python.py	/^    class NestedClass:$/;"	class
+PlainClass	corpus/python.py	/^class PlainClass:$/;"	class
+WithBases	corpus/python.py	/^class WithBases(Base1, Base2, metaclass=Meta):$/;"	class
+WithControlDefs	corpus/python.py	/^class WithControlDefs:$/;"	class
+__dunder__	corpus/python.py	/^    def __dunder__(self):$/;"	member
+_private	corpus/python.py	/^    def _private(self):$/;"	member
+_underscored	corpus/python.py	/^_underscored = 2$/;"	variable
+a	corpus/python.py	/^a, b = 1, 2$/;"	variable
+annotated	corpus/python.py	/^annotated: int = 3$/;"	variable
+async_decorated	corpus/python.py	/^async def async_decorated():$/;"	function
+async_function	corpus/python.py	/^async def async_function(url: str):$/;"	function
+async_gen	corpus/python.py	/^async def async_gen():$/;"	function
+b	corpus/python.py	/^a, b = 1, 2$/;"	variable
+child	corpus/python.py	/^    def child():$/;"	function
+class_method	corpus/python.py	/^    def class_method(cls, name):$/;"	member
+conditional_fn	corpus/python.py	/^    def conditional_fn():$/;"	function
+dct	corpus/python.py	/^dct = {"a": 1}$/;"	variable
+decorated_function	corpus/python.py	/^def decorated_function():$/;"	function
+first	corpus/python.py	/^first, *middle, last = range(5)$/;"	variable
+generator_fn	corpus/python.py	/^def generator_fn():$/;"	function
+guarded_fn	corpus/python.py	/^    def guarded_fn():$/;"	function
+in_else	corpus/python.py	/^        def in_else(self):$/;"	member
+in_except	corpus/python.py	/^        def in_except(self):$/;"	member
+in_for	corpus/python.py	/^        def in_for(self):$/;"	member
+in_if	corpus/python.py	/^        def in_if(self):$/;"	member
+in_try	corpus/python.py	/^        def in_try(self):$/;"	member
+in_while	corpus/python.py	/^        def in_while(self):  # never true at runtime, still syntax$/;"	member
+inner	corpus/python.py	/^    def inner():$/;"	function
+inner	corpus/python.py	/^        def inner():$/;"	function
+inner_with_params	corpus/python.py	/^    def inner_with_params(x, y=2):$/;"	function
+instance_method	corpus/python.py	/^    def instance_method(self, x):$/;"	member
+json_impl	corpus/python.py	/^    import ujson as json_impl$/;"	namespace
+json_impl	corpus/python.py	/^    import json as json_impl$/;"	namespace
+last	corpus/python.py	/^first, *middle, last = range(5)$/;"	variable
+lst	corpus/python.py	/^lst = [1, 2, 3]$/;"	variable
+main_async	corpus/python.py	/^async def main_async():$/;"	function
+makes_closure	corpus/python.py	/^    def makes_closure(self):$/;"	member
+math_alias	corpus/python.py	/^import math as math_alias$/;"	namespace
+matrix	corpus/python.py	/^matrix = [[0] * 3 for _ in range(3)]$/;"	variable
+mixed	corpus/python.py	/^    async def mixed(self, q: int = 0):$/;"	member
+nested_method	corpus/python.py	/^        def nested_method(self):$/;"	member
+np	corpus/python.py	/^import numpy as np$/;"	namespace
+obj_var	corpus/python.py	/^obj_var = SomeClass(1)$/;"	variable
+one_liner	corpus/python.py	/^def one_liner():$/;"	function
+outer	corpus/python.py	/^def outer():$/;"	function
+plain_function	corpus/python.py	/^def plain_function():$/;"	function
+pos_only	corpus/python.py	/^def pos_only(a, b, \/, c, *, d, e=1):$/;"	function
+prop	corpus/python.py	/^    def prop(self):$/;"	member
+prop	corpus/python.py	/^    def prop(self, value):$/;"	member
+st	corpus/python.py	/^st = {1, 2}$/;"	variable
+static_method	corpus/python.py	/^    def static_method(a, b):$/;"	member
+tpl	corpus/python.py	/^tpl = (1, 2)$/;"	variable
+type_only_fn	corpus/python.py	/^    def type_only_fn(x: int) -> int:$/;"	function
+unannotated_str	corpus/python.py	/^unannotated_str = "hello"$/;"	variable
+with_annotations	corpus/python.py	/^def with_annotations(a: int, b: str = "d") -> bool:$/;"	function
+with_control	corpus/python.py	/^def with_control(x):$/;"	function
+with_global	corpus/python.py	/^def with_global():$/;"	function
+with_nonlocal	corpus/python.py	/^def with_nonlocal():$/;"	function
+with_params	corpus/python.py	/^def with_params(a, b=1, *args, mode="x", **kwargs):$/;"	function
+with_walrus	corpus/python.py	/^def with_walrus(items):$/;"	function
+x	corpus/python.py	/^x = y = chained = 0$/;"	variable

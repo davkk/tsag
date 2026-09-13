@@ -1,0 +1,20 @@
+Button	corpus/header.h	/^enum class Kind { Button, Slider, Canvas = 10 };$/;"	enumerator
+Button	corpus/header.h	/^class Button : public Widget {$/;"	class
+CORPUS_WIDGET_H	corpus/header.h	/^#define CORPUS_WIDGET_H$/;"	macro
+Canvas	corpus/header.h	/^enum class Kind { Button, Slider, Canvas = 10 };$/;"	enumerator
+Config	corpus/header.h	/^struct Config {$/;"	struct
+Kind	corpus/header.h	/^enum class Kind { Button, Slider, Canvas = 10 };$/;"	enum
+Slider	corpus/header.h	/^enum class Kind { Button, Slider, Canvas = 10 };$/;"	enumerator
+WIDGET_CLAMP	corpus/header.h	/^#define WIDGET_CLAMP(v, lo, hi) ((v) < (lo) ? (lo) : ((v) > (hi) ? (hi) : (v)))$/;"	macro
+WIDGET_VERSION_MAJOR	corpus/header.h	/^#define WIDGET_VERSION_MAJOR 2$/;"	macro
+Widget	corpus/header.h	/^class Widget {$/;"	class
+cfg_	corpus/header.h	/^  Config cfg_;$/;"	member
+flags	corpus/header.h	/^  int flags : 3;$/;"	member
+g_widget_debug	corpus/header.h	/^extern int g_widget_debug;$/;"	variable
+height	corpus/header.h	/^  int height;$/;"	member
+id_	corpus/header.h	/^  int id_;$/;"	member
+instance_count	corpus/header.h	/^  static int instance_count;$/;"	member
+title	corpus/header.h	/^  const char *title;$/;"	member
+widget	corpus/header.h	/^namespace widget {$/;"	namespace
+widget_creator	corpus/header.h	/^using widget_creator = Widget *(*)(Kind);$/;"	typedef
+width	corpus/header.h	/^  int width;$/;"	member

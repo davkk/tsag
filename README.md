@@ -2,9 +2,22 @@
 
 ## goals
 
-- [ ] tree-sitter parsing
-- [ ] multi-threaded file parsing
+- [x] tree-sitter parsing
+- [x] multi-threaded file parsing
 - [ ] incremental tags update
-- [ ] support for multiple languages
-    - basic languages support like c, c++, python, javascript.
-    - extensibility via dynamic libraries linking?
+- [x] support for multiple languages
+- [ ] extensibility via dynamic libraries linking?
+
+## architecture
+
+```
+  Discovery (main thread, recursive walk)
+    -> Work Queue (IoQueue, cap 256)
+    -> Worker Pool, N = cores-2 (TSParser + TSQueryCursor + TagVec each,
+       grammars lazy-loaded via shared LangCache)
+    -> Merge Queue (cap N) -> k-way heap merge -> ctags on stdout
+```
+
+Full pipeline, worker lifecycle, and thread-safety notes live in
+`docs/ARCHITECTURE.md`; the single-shared-queue decision is recorded
+in `docs/ADR-001-single-queue.md`.
