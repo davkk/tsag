@@ -211,13 +211,14 @@ static const char QUERY_rust[] =
     "(use_declaration argument: (scoped_identifier name: (identifier) @name)) @kind.namespace\n"
     ;
 static const char QUERY_go[] =
-    "(package_clause name: (package_identifier) @name) @kind.namespace\n"
-    "(import_declaration (import_spec path: (interpreted_string_literal_content) @name)) @kind.namespace\n"
+    "(package_clause (package_identifier) @name) @kind.namespace\n"
+    "(import_declaration (import_spec path: (interpreted_string_literal (interpreted_string_literal_content) @name))) @kind.namespace\n"
+    "(import_declaration (import_spec_list (import_spec path: (interpreted_string_literal (interpreted_string_literal_content) @name)))) @kind.namespace\n"
     "(source_file (const_declaration (const_spec name: (identifier) @name)) @kind.constant)\n"
     "(source_file (var_declaration (var_spec name: (identifier) @name)) @kind.variable)\n"
+    "(type_declaration (type_spec name: (type_identifier) @name type: (_))) @kind.typedef\n"
     "(type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @kind.struct\n"
     "(type_declaration (type_spec name: (type_identifier) @name type: (interface_type))) @kind.interface\n"
-    "(type_declaration (type_spec name: (type_identifier) @name type: (_))) @kind.typedef\n"
     "(type_alias name: (type_identifier) @name) @kind.alias\n"
     "(field_declaration name: (field_identifier) @name) @kind.member\n"
     "(function_declaration name: (identifier) @name) @kind.function\n"
