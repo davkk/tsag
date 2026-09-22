@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <errno.h>
+#include <getopt.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -18,7 +19,81 @@
 
 #define QUEUE_CAPACITY 256
 
+typedef enum {
+  MERGE_KWAY,
+  MERGE_EXTERNAL,
+} MergeStrat;
+
+typedef struct {
+  const char* output;
+  MergeStrat merge;
+  long jobs; // 0 = auto
+  char** paths;
+  int path_count;
+} Options;
+
 const char* IGNORED_FILES[2] = {".git", "node_modules"};
+
+static void usage(FILE* f) {
+  fprintf(f, "Usage: tsag [options] [path...]\n"
+             "\n"
+             "Options:\n"
+             "  -o, --output FILE    write tags to FILE instead of stdout\n"
+             "  -j, --jobs N         worker thread count (default: cores-2, min 1)\n"
+             "      --merge STRAT    merge strategy: kway (default) | external\n"
+             "  -h, --help           show this help and exit\n");
+}
+
+static int parse_options(int argc, char** argv, Options* o) {
+  static const struct option longs[] = {
+      {"output", required_argument, NULL, 'o'},
+      {"jobs", required_argument, NULL, 'j'},
+      {"merge", required_argument, NULL, 1001},
+      {"help", no_argument, NULL, 'h'},
+      {NULL, 0, NULL, 0},
+  };
+
+  int c;
+  while ((c = getopt_long(argc, argv, "o:j:h", longs, NULL)) != -1) {
+    switch (c) {
+    case 'o':
+      o->output = optarg;
+      break;
+    case 'j': {
+      char* end = NULL;
+      errno = 0;
+      long v = strtol(optarg, &end, 10);
+      if (errno != 0 || !end || *end != '\0' || v < 1) {
+        fprintf(stderr, "invalid --jobs value '%s': expected integer >= 1\n", optarg);
+        return -1;
+      }
+      o->jobs = v;
+      break;
+    }
+    case 1001:
+      if (strcmp(optarg, "kway") == 0) {
+        o->merge = MERGE_KWAY;
+      } else if (strcmp(optarg, "external") == 0 || strcmp(optarg, "sort") == 0 ||
+                 strcmp(optarg, "external-sort") == 0) {
+        o->merge = MERGE_EXTERNAL;
+      } else {
+        fprintf(stderr, "invalid --merge value '%s': expected kway|external\n", optarg);
+        return -1;
+      }
+      break;
+    case 'h':
+      usage(stdout);
+      exit(0);
+    default:
+      usage(stderr);
+      return -1;
+    }
+  }
+
+  o->paths = &argv[optind];
+  o->path_count = argc - optind;
+  return 0;
+}
 
 typedef struct {
   IoQueue* q;
@@ -29,6 +104,7 @@ typedef struct {
 typedef struct {
   IoQueue* outq;
   int n;
+  FILE* out;
 } MergeArg;
 
 static void* worker(void* arg) {
@@ -85,7 +161,7 @@ static void* merge(void* arg) {
   HeapEntry entry;
   while (heap_pop(heap, &heap_size, &entry, batches)) {
     Tag* tag = &batches[entry.batch]->tags[entry.idx];
-    printf("%s\t%s\t/^%s$/;\"\t%s\n", tag->name, tag->file, tag->pattern, tag->kind);
+    fprintf(a->out, "%s\t%s\t/^%s$/;\"\t%s\n", tag->name, tag->file, tag->pattern, tag->kind);
     if (entry.idx + 1 < batches[entry.batch]->size) {
       entry.idx++;
       heap_push(heap, &heap_size, entry, batches);
@@ -144,6 +220,15 @@ static void enqueue_path(IoQueue* queue, const char* path) {
 }
 
 int main(int argc, char** argv) {
+  Options opts = {0};
+  if (parse_options(argc, argv, &opts) != 0) {
+    return 2;
+  }
+  if (opts.merge == MERGE_EXTERNAL) {
+    fprintf(stderr, "--merge=external not yet implemented (kway is the current fallback)\n");
+    return 2;
+  }
+
   const char* grammars_dir = getenv("TSAG_GRAMMARS");
   if (!grammars_dir || !*grammars_dir) grammars_dir = "/home/davkk/.local/share/nvim/site/parser/";
 
@@ -153,57 +238,97 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int n = sysconf(_SC_NPROCESSORS_ONLN) - 2;
-  if (n < 1) n = 1;
-
-  IoQueue* queue = io_queue_new(QUEUE_CAPACITY);
-  if (!queue) {
-    fprintf(stderr, "io queue init failed\n");
-    return 1;
+  long n = opts.jobs;
+  if (n <= 0) {
+    n = sysconf(_SC_NPROCESSORS_ONLN) - 2;
+    if (n < 1) n = 1;
   }
 
-  IoQueue* out_queue = io_queue_new(n);
-  if (!out_queue) {
-    fprintf(stderr, "io out queue init failed\n");
-    return 1;
-  }
-
-  pthread_t threads[n];
-  WorkerArg arg = {queue, out_queue, cache};
-
-  for (int i = 0; i < n; i++) {
-    int rc = pthread_create(&threads[i], NULL, worker, &arg);
-    if (rc) {
-      fprintf(stderr, "Failed to create thread %d\n", i);
+  FILE* out = stdout;
+  if (opts.output) {
+    out = fopen(opts.output, "w");
+    if (!out) {
+      fprintf(stderr, "failed to open output '%s': %s\n", opts.output, strerror(errno));
+      lang_cache_free(cache);
       return 1;
     }
   }
 
-  if (argc == 1) {
+  IoQueue* queue = io_queue_new(QUEUE_CAPACITY);
+  if (!queue) {
+    fprintf(stderr, "io queue init failed\n");
+    if (out != stdout) fclose(out);
+    lang_cache_free(cache);
+    return 1;
+  }
+
+  IoQueue* out_queue = io_queue_new((size_t)n);
+  if (!out_queue) {
+    fprintf(stderr, "io out queue init failed\n");
+    io_queue_free(queue);
+    if (out != stdout) fclose(out);
+    lang_cache_free(cache);
+    return 1;
+  }
+
+  pthread_t* threads = malloc((size_t)n * sizeof(*threads));
+  if (!threads) {
+    fprintf(stderr, "out of memory\n");
+    io_queue_free(out_queue);
+    io_queue_free(queue);
+    if (out != stdout) fclose(out);
+    lang_cache_free(cache);
+    return 1;
+  }
+  WorkerArg arg = {queue, out_queue, cache};
+
+  for (long i = 0; i < n; i++) {
+    int rc = pthread_create(&threads[i], NULL, worker, &arg);
+    if (rc) {
+      fprintf(stderr, "Failed to create thread %ld\n", i);
+      io_queue_close(queue);
+      io_queue_close(out_queue);
+      free(threads);
+      io_queue_free(out_queue);
+      io_queue_free(queue);
+      if (out != stdout) fclose(out);
+      lang_cache_free(cache);
+      return 1;
+    }
+  }
+
+  if (opts.path_count == 0) {
     enqueue_path(queue, ".");
   } else {
-    for (int i = 1; i < argc; i++) {
-      enqueue_path(queue, argv[i]);
+    for (int i = 0; i < opts.path_count; i++) {
+      enqueue_path(queue, opts.paths[i]);
     }
   }
   io_queue_close(queue);
 
-  MergeArg merge_arg = {out_queue, n};
+  MergeArg merge_arg = {out_queue, (int)n, out};
   pthread_t merge_thread;
   pthread_create(&merge_thread, NULL, merge, &merge_arg);
 
-  for (int i = 0; i < n; i++) {
+  for (long i = 0; i < n; i++) {
     int rc = pthread_join(threads[i], NULL);
     if (rc) {
-      fprintf(stderr, "Failed to join thread %d\n", i);
+      fprintf(stderr, "Failed to join thread %ld\n", i);
       return 1;
     }
   }
   io_queue_close(out_queue);
   pthread_join(merge_thread, NULL);
 
+  free(threads);
   io_queue_free(out_queue);
   io_queue_free(queue);
   lang_cache_free(cache);
+  if (out != stdout) {
+    if (fclose(out) != 0) {
+      fprintf(stderr, "failed to close output '%s': %s\n", opts.output, strerror(errno));
+      return 1;
+    }
+  }
   return 0;
 }
