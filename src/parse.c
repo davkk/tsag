@@ -79,12 +79,10 @@ static void tag_vec_free_tag(Tag* tag) {
 
 int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor,
                TagVec* vec) {
+  const char* ext = find_extension(filepath);
+  if (!ext) return 1;
+
   tag_vec_add_path(vec, filepath);
-  const char* dot = strrchr(filepath, '.');
-  if (!dot) {
-    return 1;
-  }
-  const char* ext = dot + 1;
 
   const LangEntry* entry = lang_cache_get(cache, ext);
   if (!entry) {

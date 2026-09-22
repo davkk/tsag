@@ -18,6 +18,8 @@
 
 #define QUEUE_CAPACITY 256
 
+const char* IGNORED_FILES[2] = {".git", "node_modules"};
+
 typedef struct {
   IoQueue* q;
   IoQueue* outq;
@@ -97,13 +99,21 @@ static void* merge(void* arg) {
   return NULL;
 }
 
+static bool is_ignored(const char* path) {
+  for (size_t i = 0; i < 2; i++) {
+    if (strstr(path, IGNORED_FILES[i]) != NULL) return true;
+  }
+  return false;
+}
+
 static void enqueue_path(IoQueue* queue, const char* path) {
+  if (is_ignored(path)) return;
   struct stat info;
   if (lstat(path, &info) == -1) {
     fprintf(stderr, "failed to stat '%s': %s\n", path, strerror(errno));
     return;
   }
-  if (S_ISDIR(info.st_mode)) {
+  if (S_ISDIR(info.st_mode)) { // is a directory
     DIR* dir = opendir(path);
     if (dir == NULL) {
       fprintf(stderr, "failed to open directory: %s\n", path);
@@ -124,9 +134,13 @@ static void enqueue_path(IoQueue* queue, const char* path) {
       }
     }
     closedir(dir);
-  } else if (S_ISREG(info.st_mode)) {
+  } else if (S_ISREG(info.st_mode)) { // is a regular file
+    const char* ext = find_extension(path);
+    if (!ext) return;
+    const char* lang = ext_to_lang(ext);
+    if (!lang) return;
     io_queue_put(queue, strdup(path));
-  }
+  } // ignore links
 }
 
 int main(int argc, char** argv) {

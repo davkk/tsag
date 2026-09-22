@@ -20,6 +20,8 @@ typedef struct LangCache {
   LangEntry entries[MAX_LANGS];
 } LangCache;
 
+const char* find_extension(const char* path);
+const char* ext_to_lang(const char* ext);
 LangCache* lang_cache_new(const char* parser_dir);
 void lang_cache_free(LangCache* cache);
 const LangEntry* lang_cache_get(LangCache* cache, const char* ext);

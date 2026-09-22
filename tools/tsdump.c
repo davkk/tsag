@@ -127,13 +127,12 @@ int main(int argc, char** argv) {
   LangCache* cache = lang_cache_new(dir);
   if (!cache) return 1;
 
-  const char* dot = strrchr(filepath, '.');
-  if (!dot) {
+  const char* ext = find_extension(filepath);
+  if (!ext) {
     fprintf(stderr, "no extension: %s\n", filepath);
     lang_cache_free(cache);
     return 1;
   }
-  const char* ext = dot + 1;
   const LangEntry* entry = lang_cache_get(cache, ext);
   if (!entry) {
     fprintf(stderr, "no grammar for extension: %s\n", ext);

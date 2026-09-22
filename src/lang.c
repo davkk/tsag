@@ -14,7 +14,15 @@ const struct {
                 {"hpp", "cpp"},       {"py", "python"}, {"lua", "lua"}, {"js", "javascript"},
                 {"ts", "typescript"}, {"zig", "zig"},   {"rs", "rust"}, {"go", "go"}};
 
-static const char* ext_to_lang(const char* ext) {
+const char* find_extension(const char* path) {
+  const char* base = strrchr(path, '/');
+  base = base ? base + 1 : path;
+  const char* dot = strrchr(base, '.');
+  if (!dot || dot == base || !dot[1]) return NULL;
+  return dot + 1;
+}
+
+const char* ext_to_lang(const char* ext) {
   for (size_t i = 0; i < sizeof(EXT_LANG) / sizeof(EXT_LANG[0]); i++) {
     if (strcmp(ext, EXT_LANG[i].ext) == 0) {
       return EXT_LANG[i].name;
