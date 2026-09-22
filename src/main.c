@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <tree_sitter/api.h>
 #include <unistd.h>
 
@@ -20,8 +21,8 @@
 #define QUEUE_CAPACITY 256
 
 typedef enum {
-  MERGE_KWAY,
   MERGE_EXTERNAL,
+  MERGE_KWAY,
 } MergeStrat;
 
 typedef struct {
@@ -32,7 +33,7 @@ typedef struct {
   int path_count;
 } Options;
 
-const char* IGNORED_FILES[2] = {".git", "node_modules"};
+const char* IGNORED_FILES[3] = {".git", "node_modules", "build"};
 
 static void usage(FILE* f) {
   fprintf(f, "Usage: tsag [options] [path...]\n"
@@ -107,7 +108,64 @@ typedef struct {
   FILE* out;
 } MergeArg;
 
-static void* worker(void* arg) {
+static void* worker_external(void* arg) {
+  WorkerArg* a = (WorkerArg*)arg;
+  TSParser* parser = ts_parser_new();
+  if (!parser) {
+    fprintf(stderr, "Parser init failed\n");
+    return NULL;
+  }
+  TSQueryCursor* cursor = ts_query_cursor_new();
+  if (!cursor) {
+    fprintf(stderr, "Cursor init failed\n");
+    ts_parser_delete(parser);
+    return NULL;
+  }
+
+  // TODO: add directory/project name to the template for easier debugging
+  // TODO: disk quota exceeded - I might have to use .cache dir instead of /tmp
+  // TODO: tmp files are not removed if the process is killed/ctrl-c
+  char tmp_path[] = "/tmp/tsag.XXXXXX"; // NOTE: the X will be replaced with a real path by mkstemp
+  int tmp_fd = mkstemp(tmp_path);
+  if (tmp_fd == -1) {
+    fprintf(stderr, "mkstemp: %s\n", strerror(errno));
+    return NULL;
+  }
+
+  FILE* tmp_file = fdopen(tmp_fd, "w");
+  if (!tmp_file) {
+    close(tmp_fd);
+    unlink(tmp_path);
+    return NULL;
+  }
+
+  char* path;
+  while ((path = (char*)io_queue_get(a->q)) != NULL) {
+    parse_file_emit(path, a->cache, parser, cursor, tmp_file);
+    free(path);
+  }
+
+  if (fflush(tmp_file) != 0 || ferror(tmp_file)) {
+    fprintf(stderr, "spill write failed: %s\n", strerror(errno));
+    fclose(tmp_file);
+    unlink(tmp_path);
+    return NULL;
+  }
+  if (fclose(tmp_file) != 0) {
+    fprintf(stderr, "spill close failed: %s\n", strerror(errno));
+    unlink(tmp_path);
+    return NULL;
+  }
+
+  // TODO: check strdup status
+  io_queue_put(a->outq, strdup(tmp_path));
+
+  ts_query_cursor_delete(cursor);
+  ts_parser_delete(parser);
+  return NULL;
+}
+
+static void* worker_kway(void* arg) {
   WorkerArg* a = (WorkerArg*)arg;
   TSParser* parser = ts_parser_new();
   if (!parser) {
@@ -136,7 +194,93 @@ static void* worker(void* arg) {
   return NULL;
 }
 
-static void* merge(void* arg) {
+static void* merge_external(void* arg) {
+  MergeArg* a = (MergeArg*)arg;
+
+  if (a->n <= 0) {
+    fprintf(stderr, "merge_external: invalid worker count\n");
+    return (void*)(intptr_t)1;
+  }
+
+  int pipefd[2];
+  if (pipe(pipefd) == -1) {
+    fprintf(stderr, "pipe: %s\n", strerror(errno));
+    return (void*)(intptr_t)1;
+  }
+
+  pid_t pid = fork();
+  if (pid == -1) {
+    fprintf(stderr, "fork: %s\n", strerror(errno));
+    close(pipefd[0]);
+    close(pipefd[1]);
+    return (void*)(intptr_t)1;
+  }
+
+  if (pid == 0) { // child
+    close(pipefd[1]);
+    if (dup2(pipefd[0], STDIN_FILENO) == -1) { // point child stdin to pipe read end
+      fprintf(stderr, "dup2 stdin: %s\n", strerror(errno));
+      _exit(127);
+    }
+    close(pipefd[0]);
+
+    setenv("LC_ALL", "C", 1);
+    setenv("LC_COLLATE", "C", 1);
+    if (a->out != stdout) { // point child stdout to output file
+      fflush(a->out);
+      if (dup2(fileno(a->out), STDOUT_FILENO) == -1) {
+        fprintf(stderr, "dup2 stdout: %s\n", strerror(errno));
+        _exit(127);
+      }
+    }
+
+    char* sort_argv[] = {"sort", "-u", NULL};
+    // FIXME: resolve absolute path to sort binary at compile time
+    execvp("sort", sort_argv);
+    fprintf(stderr, "exec sort: %s\n", strerror(errno));
+    _exit(127); // exit child
+    return NULL;
+  }
+
+  // parent
+  close(pipefd[0]);
+  signal(SIGPIPE, SIG_IGN); // avoid dying if sort exits before we finish writing
+
+  char* path;
+  while ((path = io_queue_get(a->outq)) != NULL) {
+    FILE* f = fopen(path, "r");
+    if (!f) {
+      fprintf(stderr, "fopen %s: %s\n", path, strerror(errno));
+      free(path);
+      continue;
+    }
+    char buf[65536];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+      if (write(pipefd[1], buf, n) != (ssize_t)n) {
+        fprintf(stderr, "write to sort: %s\n", strerror(errno));
+        break;
+      }
+    }
+    fclose(f);
+    unlink(path);
+    free(path);
+  }
+  close(pipefd[1]);
+
+  int status = 0;
+  while (waitpid(pid, &status, 0) == -1 && errno == EINTR) {
+  }
+
+  if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) { // check for child exit status
+    fprintf(stderr, "sort failed (status %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+    return (void*)(intptr_t)1;
+  }
+
+  return NULL;
+}
+
+static void* merge_kway(void* arg) {
   MergeArg* a = (MergeArg*)arg;
 
   TagVec* batches[a->n];
@@ -176,6 +320,7 @@ static void* merge(void* arg) {
 }
 
 static bool is_ignored(const char* path) {
+  // TODO: add --exclude flag and add more dirs
   for (size_t i = 0; i < 2; i++) {
     if (strstr(path, IGNORED_FILES[i]) != NULL) return true;
   }
@@ -222,10 +367,6 @@ static void enqueue_path(IoQueue* queue, const char* path) {
 int main(int argc, char** argv) {
   Options opts = {0};
   if (parse_options(argc, argv, &opts) != 0) {
-    return 2;
-  }
-  if (opts.merge == MERGE_EXTERNAL) {
-    fprintf(stderr, "--merge=external not yet implemented (kway is the current fallback)\n");
     return 2;
   }
 
@@ -283,7 +424,8 @@ int main(int argc, char** argv) {
   WorkerArg arg = {queue, out_queue, cache};
 
   for (long i = 0; i < n; i++) {
-    int rc = pthread_create(&threads[i], NULL, worker, &arg);
+    void* (*worker_func)(void*) = opts.merge == MERGE_EXTERNAL ? worker_external : worker_kway;
+    int rc = pthread_create(&threads[i], NULL, worker_func, &arg);
     if (rc) {
       fprintf(stderr, "Failed to create thread %ld\n", i);
       io_queue_close(queue);
@@ -306,9 +448,10 @@ int main(int argc, char** argv) {
   }
   io_queue_close(queue);
 
+  void* (*merge_func)(void*) = opts.merge == MERGE_EXTERNAL ? merge_external : merge_kway;
   MergeArg merge_arg = {out_queue, (int)n, out};
   pthread_t merge_thread;
-  pthread_create(&merge_thread, NULL, merge, &merge_arg);
+  pthread_create(&merge_thread, NULL, merge_func, &merge_arg);
 
   for (long i = 0; i < n; i++) {
     int rc = pthread_join(threads[i], NULL);
