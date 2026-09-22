@@ -1,20 +1,47 @@
+a	corpus/lua.lua	/^local a, b = 1, 2$/;"	variable
+anon	corpus/lua.lua	/^  local anon = function(q)$/;"	function
+arrow_like	corpus/lua.lua	/^  local arrow_like = function(...)$/;"	function
 bar	corpus/lua.lua	/^function M.bar()$/;"	function
 baz	corpus/lua.lua	/^function M.baz(a, b)$/;"	function
 baz_method	corpus/lua.lua	/^function M:baz_method(a)$/;"	function
+b	corpus/lua.lua	/^local a, b = 1, 2$/;"	variable
 chained	corpus/lua.lua	/^function obj.sub:chained()$/;"	function
 colon_only	corpus/lua.lua	/^function MOD:colon_only(x, y)$/;"	function
 deep	corpus/lua.lua	/^function a.b.c.deep()$/;"	function
+field_fn	corpus/lua.lua	/^M.field_fn = function(z)$/;"	function
+fn_field	corpus/lua.lua	/^  fn_field = function() end,$/;"	function
 foo	corpus/lua.lua	/^function foo()$/;"	function
+__index	corpus/lua.lua	/^Point.__index = Point$/;"	member
 in_else_branch	corpus/lua.lua	/^  function in_else_branch()$/;"	function
 in_elseif_branch	corpus/lua.lua	/^  function in_elseif_branch()$/;"	function
 in_if_branch	corpus/lua.lua	/^  function in_if_branch()$/;"	function
 inner_fn	corpus/lua.lua	/^  local function inner_fn()$/;"	function
 inner_with_args	corpus/lua.lua	/^  local function inner_with_args(p)$/;"	function
+local_assign	corpus/lua.lua	/^local local_assign = function()$/;"	function
+_M	corpus/lua.lua	/^local _M = {}$/;"	variable
+m	corpus/lua.lua	/^local m = require("mod")$/;"	variable
+M	corpus/lua.lua	/^M = {}$/;"	variable
+MOD	corpus/lua.lua	/^local MOD = {}$/;"	variable
 multi_ret	corpus/lua.lua	/^function multi_ret()$/;"	function
+named_assign	corpus/lua.lua	/^named_assign = function()$/;"	function
+n	corpus/lua.lua	/^local n = 0$/;"	variable
 new	corpus/lua.lua	/^function Point.new(x, y)$/;"	function
+new	corpus/lua.lua	/^_M.new = Point.new$/;"	member
 norm	corpus/lua.lua	/^function Point:norm()$/;"	function
+ok	corpus/lua.lua	/^local ok, res = pcall(require, "maybe")$/;"	variable
 outer_fn	corpus/lua.lua	/^function outer_fn()$/;"	function
+Point	corpus/lua.lua	/^local Point = {}$/;"	variable
+qstr	corpus/lua.lua	/^local qstr = [==[ level-2 bracket ]==]$/;"	variable
 qux	corpus/lua.lua	/^local function qux()$/;"	function
+res	corpus/lua.lua	/^local ok, res = pcall(require, "maybe")$/;"	variable
+s	corpus/lua.lua	/^local s, t, u = 1, "two", {}$/;"	variable
+str	corpus/lua.lua	/^local str = [[$/;"	variable
+t	corpus/lua.lua	/^local s, t, u = 1, "two", {}$/;"	variable
+T	corpus/lua.lua	/^local T = {$/;"	variable
+u	corpus/lua.lua	/^local s, t, u = 1, "two", {}$/;"	variable
 vargs	corpus/lua.lua	/^function vargs(a, ...)$/;"	function
+version	corpus/lua.lua	/^_M.version = "1.0"$/;"	member
 with_body	corpus/lua.lua	/^local function with_body(n)$/;"	function
 with_params	corpus/lua.lua	/^function with_params(a, b, c)$/;"	function
+x	corpus/lua.lua	/^local x = 1$/;"	variable
+y	corpus/lua.lua	/^y = 2 -- global (edge: currently untagged)$/;"	variable

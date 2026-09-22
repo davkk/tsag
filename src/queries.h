@@ -99,6 +99,13 @@ static const char QUERY_lua[] =
     "(function_declaration name: (identifier) @name) @kind.function\n"
     "(function_declaration name: (dot_index_expression field: (identifier) @name)) @kind.function\n"
     "(function_declaration name: (method_index_expression method: (identifier) @name)) @kind.function\n"
+    "(chunk (variable_declaration (assignment_statement (variable_list name: (identifier) @name))) @kind.variable)\n"
+    "(chunk (assignment_statement (variable_list name: (identifier) @name)) @kind.variable)\n"
+    "(chunk (assignment_statement (variable_list name: (dot_index_expression field: (identifier) @name))) @kind.member)\n"
+    "(variable_declaration (assignment_statement (variable_list name: (identifier) @name) (expression_list value: (function_definition)))) @kind.function\n"
+    "(assignment_statement (variable_list name: (identifier) @name) (expression_list value: (function_definition))) @kind.function\n"
+    "(assignment_statement (variable_list name: (dot_index_expression field: (identifier) @name)) (expression_list value: (function_definition))) @kind.function\n"
+    "(field name: (identifier) @name value: (function_definition)) @kind.function\n"
     ;
 
 static const char QUERY_javascript[] =
