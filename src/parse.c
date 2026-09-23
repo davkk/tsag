@@ -6,8 +6,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+
+#define MAX_LINE_LEN 512
+#define MAX_FILE_SIZE 2 * 1024 * 1024 // 2MB
 
 static char* read_file(const char* path, size_t* out_len) {
+  struct stat sb;
+  if (stat(path, &sb) != 0 || sb.st_size > MAX_FILE_SIZE) return NULL;
   FILE* f = fopen(path, "rb");
   if (!f) return NULL;
   if (fseek(f, 0, SEEK_END) != 0) {
@@ -35,36 +41,45 @@ static char* read_file(const char* path, size_t* out_len) {
 static void line_range(const char* src, size_t src_len, uint32_t start, const char** out,
                        size_t* out_len) {
   size_t s = start;
-  while (s > 0 && src[s - 1] != '\n') s--;
+  size_t back_limit = (start > MAX_LINE_LEN) ? start - MAX_LINE_LEN : 0;
+  while (s > back_limit && src[s - 1] != '\n') s--;
   size_t e = start;
-  while (e < src_len && src[e] != '\n') e++;
+  size_t fwd_limit = (src_len - start > MAX_LINE_LEN) ? start + MAX_LINE_LEN : src_len;
+  while (e < fwd_limit && src[e] != '\n') e++;
   *out = src + s;
   *out_len = e - s;
 }
 
 static char* escape_pattern(const char* src, size_t len) {
-  char* dst = malloc(len * 2 + 1);
-  if (!dst) return NULL;
   size_t w = 0;
   for (size_t i = 0; i < len; i++) {
     char c = src[i];
     if (c == '\n' || c == '\r') break;
+    if (c == '\t' || c == '\\' || c == '/' || (c == '$' && i + 1 == len)) w += 2;
+    else w += 1;
+  }
+  char* dst = malloc(w + 1);
+  if (!dst) return NULL;
+  size_t out = 0;
+  for (size_t i = 0; i < len; i++) {
+    char c = src[i];
+    if (c == '\n' || c == '\r') break;
     if (c == '\t') {
-      dst[w++] = '\\';
-      dst[w++] = 't';
+      dst[out++] = '\\';
+      dst[out++] = 't';
       continue;
     }
     if (c == '\\' || c == '/') {
-      dst[w++] = '\\';
-      dst[w++] = c;
+      dst[out++] = '\\';
+      dst[out++] = c;
       continue;
     }
     if (c == '$' && i + 1 == len) {
-      dst[w++] = '\\';
-      dst[w++] = '$';
+      dst[out++] = '\\';
+      dst[out++] = '$';
       continue;
     }
-    dst[w++] = c;
+    dst[out++] = c;
   }
   dst[w] = '\0';
   return dst;
