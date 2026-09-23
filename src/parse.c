@@ -5,17 +5,31 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #define MAX_LINE_LEN 512
-#define MAX_FILE_SIZE 2 * 1024 * 1024 // 2MB
+#define MAX_FILE_SIZE (2UL * 1024 * 1024) // 2 MiB: skip huge/generated files
 
 static char* read_file(const char* path, size_t* out_len) {
+  int fd = open(path, O_RDONLY);
+  if (fd == -1) return NULL;
   struct stat sb;
-  if (stat(path, &sb) != 0 || sb.st_size > MAX_FILE_SIZE) return NULL;
-  FILE* f = fopen(path, "rb");
-  if (!f) return NULL;
+  if (fstat(fd, &sb) != 0) {
+    close(fd);
+    return NULL;
+  }
+  if (!S_ISREG(sb.st_mode) || (size_t)sb.st_size > MAX_FILE_SIZE) {
+    close(fd);
+    return NULL;
+  }
+  FILE* f = fdopen(fd, "rb");
+  if (!f) {
+    close(fd);
+    return NULL;
+  }
   if (fseek(f, 0, SEEK_END) != 0) {
     fclose(f);
     return NULL;
