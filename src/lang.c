@@ -77,8 +77,7 @@ static LangEntry* load_lang(const char* dir, const char* lang) {
   TSQueryError error_type = TSQueryErrorNone;
   query = ts_query_new(entry->lang, q_src, (uint32_t)q_len, &error_offset, &error_type);
   if (!query) {
-    fprintf(stderr, "Query compile failed at offset %u (error %d)\n", error_offset,
-            (int)error_type);
+    fprintf(stderr, "Query compile failed at offset %u (error %d)\n", error_offset, (int)error_type);
     goto cleanup;
   }
   entry->query = query;

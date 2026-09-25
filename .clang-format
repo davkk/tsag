@@ -3,7 +3,7 @@ IndentWidth: 2
 PointerAlignment: Left
 DerivePointerAlignment: false
 ReferenceAlignment: Left
-ColumnLimit: 100
+ColumnLimit: 120
 AllowShortFunctionsOnASingleLine: Inline
 SpaceBeforeParens: ControlStatements
 BreakBeforeBraces: Attach
