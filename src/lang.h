@@ -4,7 +4,7 @@
 #include <pthread.h>
 #include <tree_sitter/api.h>
 
-#define MAX_LANGS 10
+#define MAX_LANGS 32
 
 typedef struct LangEntry {
   char* name;

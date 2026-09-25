@@ -1,11 +1,12 @@
-#include "lang.h"
-#include "queries.h"
-
 #include <dlfcn.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lang.h"
+#include "queries.h"
 
 const struct {
   const char* ext;
@@ -38,7 +39,8 @@ static LangEntry* load_lang(const char* dir, const char* lang) {
   entry->query = NULL;
   entry->name = NULL;
 
-  char so_path[64], sym[64];
+  char so_path[PATH_MAX];
+  char sym[64];
   void* lib = NULL;
   const char* q_src = NULL;
   size_t q_len = 0;

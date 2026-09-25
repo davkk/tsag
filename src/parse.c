@@ -1,5 +1,4 @@
 #include "parse.h"
-#include "tagvec.h"
 
 #include <ctype.h>
 #include <fcntl.h>
@@ -21,7 +20,10 @@ static char* read_file(const char* path, size_t* out_len) {
     close(fd);
     return NULL;
   }
-  if (!S_ISREG(sb.st_mode) || (size_t)sb.st_size > MAX_FILE_SIZE) {
+  if (!S_ISREG(sb.st_mode) ||
+      sb.st_size < 0 ||
+      (uintmax_t)sb.st_size > MAX_FILE_SIZE ||
+      (uintmax_t)sb.st_size > SIZE_MAX - 1) {
     close(fd);
     return NULL;
   }
@@ -30,22 +32,13 @@ static char* read_file(const char* path, size_t* out_len) {
     close(fd);
     return NULL;
   }
-  if (fseek(f, 0, SEEK_END) != 0) {
-    fclose(f);
-    return NULL;
-  }
-  long n = ftell(f);
-  if (n < 0) {
-    fclose(f);
-    return NULL;
-  }
-  fseek(f, 0, SEEK_SET);
-  char* buf = malloc((size_t)n + 1);
+  size_t n = (size_t)sb.st_size;
+  char* buf = malloc(n + 1);
   if (!buf) {
     fclose(f);
     return NULL;
   }
-  size_t got = fread(buf, 1, (size_t)n, f);
+  size_t got = fread(buf, 1, n, f);
   fclose(f);
   buf[got] = '\0';
   if (out_len) *out_len = got;

@@ -1,6 +1,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <getopt.h>
+#include <libgen.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -11,14 +12,12 @@
 #include <sys/wait.h>
 #include <tree_sitter/api.h>
 #include <unistd.h>
+#include <assert.h>
 
-#include "heap.h"
 #include "ioqueue.h"
 #include "lang.h"
 #include "parse.h"
-#include "tagvec.h"
 
-#define QUEUE_CAPACITY 256
 #define DEFAULT_OUTPUT_FILEPATH "tags"
 
 typedef struct {
@@ -74,7 +73,8 @@ static int parse_options(int argc, char** argv, Options* o) {
 typedef struct {
   IoQueue* q;
   IoQueue* outq;
-  LangCache* cache;
+  LangCache* lang_cache;
+  char* cache_path;
 } WorkerArg;
 
 typedef struct {
@@ -85,56 +85,75 @@ typedef struct {
 
 static void* worker(void* arg) {
   WorkerArg* a = (WorkerArg*)arg;
-  TSParser* parser = ts_parser_new();
+  TSParser* parser = NULL;
+  TSQueryCursor* cursor = NULL;
+  FILE* spill_file = NULL;
+  char spill_path[PATH_MAX];
+  bool spill_exists = false;
+
+  parser = ts_parser_new();
   if (!parser) {
     fprintf(stderr, "Parser init failed\n");
-    return NULL;
+    goto cleanup;
   }
-  TSQueryCursor* cursor = ts_query_cursor_new();
+  cursor = ts_query_cursor_new();
   if (!cursor) {
     fprintf(stderr, "Cursor init failed\n");
-    ts_parser_delete(parser);
-    return NULL;
+    goto cleanup;
   }
 
-  // TODO: add directory/project name to the template for easier debugging
-  // TODO: disk quota exceeded - I might have to use .cache dir instead of /tmp
-  // TODO: tmp files are not removed if the process is killed/ctrl-c
-  char tmp_path[] = "/tmp/tsag.XXXXXX"; // NOTE: the X will be replaced with a real path by mkstemp
-  int tmp_fd = mkstemp(tmp_path);
-  if (tmp_fd == -1) {
-    fprintf(stderr, "mkstemp: %s\n", strerror(errno));
-    return NULL;
+  // FIXME: tmp files are not removed if the process is killed/ctrl-c
+
+  int n = snprintf(spill_path, sizeof(spill_path), "%s.XXXXXX", a->cache_path);
+  if (n < 0 || (size_t)n >= sizeof(spill_path)) {
+    fprintf(stderr, "path too long\n");
+    goto cleanup;
   }
 
-  FILE* tmp_file = fdopen(tmp_fd, "w");
-  if (!tmp_file) {
-    close(tmp_fd);
-    unlink(tmp_path);
-    return NULL;
+  int spill_fd = mkstemp(spill_path);
+  if (spill_fd == -1) {
+    fprintf(stderr, "spill file creation failed: %s\n", strerror(errno));
+    goto cleanup;
+  }
+
+  spill_exists = true;
+
+  spill_file = fdopen(spill_fd, "w");
+  if (!spill_file) {
+    fprintf(stderr, "spill file open failed: %s\n", strerror(errno));
+    close(spill_fd);
+    goto cleanup;
   }
 
   char* path;
   while ((path = (char*)io_queue_get(a->q)) != NULL) {
-    parse_file(path, a->cache, parser, cursor, tmp_file);
+    parse_file(path, a->lang_cache, parser, cursor, spill_file);
     free(path);
   }
 
-  if (fflush(tmp_file) != 0 || ferror(tmp_file)) {
+  if (fflush(spill_file) != 0 || ferror(spill_file)) {
     fprintf(stderr, "spill write failed: %s\n", strerror(errno));
-    fclose(tmp_file);
-    unlink(tmp_path);
-    return NULL;
+    goto cleanup;
   }
-  if (fclose(tmp_file) != 0) {
+  if (fclose(spill_file) != 0) {
     fprintf(stderr, "spill close failed: %s\n", strerror(errno));
-    unlink(tmp_path);
-    return NULL;
+    spill_file = NULL;
+    goto cleanup;
+  }
+  spill_file = NULL;
+
+  char* spill_path_copy = strdup(spill_path);
+  if (!spill_path_copy) {
+    fprintf(stderr, "spill path copy failed\n");
+    goto cleanup;
   }
 
-  // TODO: check strdup status
-  io_queue_put(a->outq, strdup(tmp_path));
+  io_queue_put(a->outq, spill_path_copy);
+  spill_exists = false;
 
+cleanup:
+  if (spill_file) fclose(spill_file);
+  if (spill_exists) unlink(spill_path);
   ts_query_cursor_delete(cursor);
   ts_parser_delete(parser);
   return NULL;
@@ -253,6 +272,7 @@ static void enqueue_path(IoQueue* queue, const char* path) {
       if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
         size_t len = strlen(path) + 1 + strlen(entry->d_name) + 1;
         char* fullpath = malloc(len);
+        if (!fullpath) continue;
         if (strcmp(path, ".") == 0) {
           strcpy(fullpath, entry->d_name);
         } else {
@@ -278,25 +298,67 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  const char* grammars_dir = getenv("TSAG_GRAMMARS");
-  if (!grammars_dir || !*grammars_dir) grammars_dir = "/home/davkk/.local/share/nvim/site/parser/";
-
-  LangCache* cache = lang_cache_new(grammars_dir);
-  if (!cache) {
-    fprintf(stderr, "cache init failed\n");
+  char cwd[PATH_MAX];
+  if (!getcwd(cwd, sizeof(cwd))) {
+    fprintf(stderr, "getcwd: %s\n", strerror(errno));
+    return 1;
+  }
+  char* dirname = basename(cwd);
+  if (!dirname) {
+    fprintf(stderr, "basename failed\n");
     return 1;
   }
 
-  long n = opts.jobs;
-  if (n <= 0) {
-    n = sysconf(_SC_NPROCESSORS_ONLN) - 2;
-    if (n < 1) n = 1;
+  char* xdg_cache_dir = getenv("XDG_CACHE_HOME");
+  char base_cache_path[PATH_MAX];
+  int n = snprintf(base_cache_path, sizeof(base_cache_path), "%s/tsag", xdg_cache_dir ? xdg_cache_dir : "/tmp");
+  if (n < 0 || (size_t)n >= sizeof(base_cache_path)) {
+    fprintf(stderr, "base cache path too long\n");
+    return 1;
+  }
+  if (mkdir(base_cache_path, 0755) == -1 && errno != EEXIST) {
+    fprintf(stderr, "base cache dir '%s' creation failed: %s\n", base_cache_path, strerror(errno));
+    return 1;
   }
 
-  FILE* out = fopen(opts.output ? opts.output : DEFAULT_OUTPUT_FILEPATH, "w");
+  char cache_path[PATH_MAX];
+  n = snprintf(cache_path, sizeof(cache_path), "%s/%s", base_cache_path, dirname ? dirname : "tmp");
+  if (n < 0 || (size_t)n >= sizeof(cache_path)) {
+    fprintf(stderr, "cache path too long\n");
+    return 1;
+  }
+
+  char* parsers_dir = getenv("TSAG_PARSERS");
+  if (!parsers_dir) {
+    const char* base_dir = getenv("XDG_DATA_HOME");
+    assert(base_dir);
+    static char buf[PATH_MAX];
+    snprintf(buf, sizeof(buf), "%s/tsag", base_dir);
+    parsers_dir = buf;
+  }
+  assert(parsers_dir);
+
+  LangCache* lang_cache = lang_cache_new(parsers_dir);
+  if (!lang_cache) {
+    fprintf(stderr, "lang_cache init failed\n");
+    return 1;
+  }
+
+  long jobs = opts.jobs;
+  if (jobs <= 0) {
+    jobs = sysconf(_SC_NPROCESSORS_ONLN) - 2;
+    if (jobs < 1) jobs = 1;
+  }
+
+  FILE* out;
+  if (opts.output && strcmp(opts.output, "-") == 0) {
+    out = stdout;
+  } else {
+    out = fopen(opts.output ? opts.output : DEFAULT_OUTPUT_FILEPATH, "w");
+  }
   if (!out) {
     fprintf(stderr, "failed to open output '%s': %s\n", opts.output, strerror(errno));
-    lang_cache_free(cache);
+    lang_cache_free(lang_cache);
     return 1;
   }
 
@@ -304,32 +366,33 @@ int main(int argc, char** argv) {
   if (!queue) {
     fprintf(stderr, "io queue init failed\n");
     if (out != stdout) fclose(out);
-    lang_cache_free(cache);
+    lang_cache_free(lang_cache);
     return 1;
   }
 
-  IoQueue* out_queue = io_queue_new((size_t)n);
+  IoQueue* out_queue = io_queue_new((size_t)jobs);
   if (!out_queue) {
     fprintf(stderr, "io out queue init failed\n");
     io_queue_free(queue);
     if (out != stdout) fclose(out);
-    lang_cache_free(cache);
+    lang_cache_free(lang_cache);
     return 1;
   }
 
-  pthread_t* threads = malloc((size_t)n * sizeof(*threads));
+  pthread_t* threads = malloc((size_t)jobs * sizeof(*threads));
   if (!threads) {
     fprintf(stderr, "out of memory\n");
     io_queue_free(out_queue);
     io_queue_free(queue);
     if (out != stdout) fclose(out);
-    lang_cache_free(cache);
+    lang_cache_free(lang_cache);
     return 1;
   }
-  WorkerArg arg = {queue, out_queue, cache};
 
-  for (long i = 0; i < n; i++) {
-    int rc = pthread_create(&threads[i], NULL, worker, &arg);
+  WorkerArg worker_arg = {queue, out_queue, lang_cache, cache_path};
+
+  for (long i = 0; i < jobs; i++) {
+    int rc = pthread_create(&threads[i], NULL, worker, &worker_arg);
     if (rc) {
       fprintf(stderr, "Failed to create thread %ld\n", i);
       io_queue_close(queue);
@@ -338,7 +401,7 @@ int main(int argc, char** argv) {
       io_queue_free(out_queue);
       io_queue_free(queue);
       if (out != stdout) fclose(out);
-      lang_cache_free(cache);
+      lang_cache_free(lang_cache);
       return 1;
     }
   }
@@ -352,11 +415,11 @@ int main(int argc, char** argv) {
   }
   io_queue_close(queue);
 
-  MergeArg merge_arg = {out_queue, (int)n, out};
+  MergeArg merge_arg = {out_queue, (int)jobs, out};
   pthread_t merge_thread;
   pthread_create(&merge_thread, NULL, merge, &merge_arg);
 
-  for (long i = 0; i < n; i++) {
+  for (long i = 0; i < jobs; i++) {
     int rc = pthread_join(threads[i], NULL);
     if (rc) {
       fprintf(stderr, "Failed to join thread %ld\n", i);
@@ -369,7 +432,7 @@ int main(int argc, char** argv) {
   free(threads);
   io_queue_free(out_queue);
   io_queue_free(queue);
-  lang_cache_free(cache);
+  lang_cache_free(lang_cache);
   if (out != stdout) {
     if (fclose(out) != 0) {
       fprintf(stderr, "failed to close output '%s': %s\n", opts.output, strerror(errno));

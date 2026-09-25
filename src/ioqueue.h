@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+// TODO: consider doing a priority queue over file sizes to parse large small files first
+#define QUEUE_CAPACITY 256
+
 typedef struct {
   void** buf;
   size_t head;
