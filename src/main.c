@@ -27,7 +27,7 @@ typedef struct {
   int path_count;
 } Options;
 
-const char* IGNORED_FILES[3] = {".git", "node_modules", "build"};
+const char* IGNORED_FILES[3] = {".git", "build"};
 
 static void usage(FILE* f) {
   fprintf(f, "Usage: tsag [options] [path...]\n"
@@ -254,6 +254,7 @@ static bool is_ignored(const char* path) {
   return false;
 }
 
+// TODO: convert to not be recursive
 static void enqueue_path(IoQueue* queue, const char* path) {
   if (is_ignored(path)) return;
   struct stat info;
@@ -406,6 +407,24 @@ int main(int argc, char** argv) {
     }
   }
 
+  MergeArg merge_arg = {out_queue, (int)jobs, out};
+  pthread_t merge_thread;
+  int merge_rc = pthread_create(&merge_thread, NULL, merge, &merge_arg);
+  if (merge_rc) {
+    fprintf(stderr, "Failed to create merge thread\n");
+    io_queue_close(queue);
+    for (long i = 0; i < jobs; i++) {
+      pthread_join(threads[i], NULL);
+    }
+    io_queue_close(out_queue);
+    free(threads);
+    io_queue_free(out_queue);
+    io_queue_free(queue);
+    if (out != stdout) fclose(out);
+    lang_cache_free(lang_cache);
+    return 1;
+  }
+
   if (opts.path_count == 0) {
     enqueue_path(queue, ".");
   } else {
@@ -414,10 +433,6 @@ int main(int argc, char** argv) {
     }
   }
   io_queue_close(queue);
-
-  MergeArg merge_arg = {out_queue, (int)jobs, out};
-  pthread_t merge_thread;
-  pthread_create(&merge_thread, NULL, merge, &merge_arg);
 
   for (long i = 0; i < jobs; i++) {
     int rc = pthread_join(threads[i], NULL);
