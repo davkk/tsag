@@ -1,27 +1,62 @@
+.DEFAULT_GOAL := all
+
 CC = cc
-STD = -std=gnu11 # TODO: maybe I should only use -std=gnu11
+STD = -std=gnu11
 WARN = -Wall -Wextra -Werror -Wshadow -pedantic
 INC = -Iinclude/tree-sitter/lib/include -Iinclude/tree-sitter/lib/src
-SRCS = $(wildcard src/*.c) include/tree-sitter/lib/src/lib.c
-HDRS = $(wildcard src/*.h)
 LDLIBS = -ldl
 BUILD_DIR = build
+RDIR = $(BUILD_DIR)/release
+DDIR = $(BUILD_DIR)/debug
+ADIR = $(BUILD_DIR)/asan
 
-CFLAGS += $(STD) $(WARN) $(INC)
+BASEFLAGS = $(STD) $(WARN) $(INC)
+RCFLAGS = $(BASEFLAGS) -O2 -DNDEBUG
+DCFLAGS = $(BASEFLAGS) -O0 -g3
+ACFLAGS = $(BASEFLAGS) -O1 -g3 -fsanitize=address,undefined
 
-$(BUILD_DIR)/tsag: CFLAGS += -O2 -DNDEBUG
-$(BUILD_DIR)/tsag-debug: CFLAGS += -O0 -g3
-$(BUILD_DIR)/tsag-asan: CFLAGS += -O1 -g3 -fsanitize=address,undefined
+SRCS = $(wildcard src/*.c)
+HDRS = $(wildcard src/*.h)
+TS_SRC = include/tree-sitter/lib/src/lib.c
 
-$(BUILD_DIR)/tsag $(BUILD_DIR)/tsag-debug $(BUILD_DIR)/tsag-asan: $(SRCS) $(HDRS) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+R_OBJS = $(patsubst src/%.c,$(RDIR)/%.o,$(SRCS))
+D_OBJS = $(patsubst src/%.c,$(DDIR)/%.o,$(SRCS))
+A_OBJS = $(patsubst src/%.c,$(ADIR)/%.o,$(SRCS))
 
-TSDUMP_SRCS = tools/tsdump.c src/lang.c src/queries.h include/tree-sitter/lib/src/lib.c
-$(BUILD_DIR)/tsdump: CFLAGS += -Isrc -O1 -g3
-$(BUILD_DIR)/tsdump: $(TSDUMP_SRCS) $(HDRS) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -o $@ tools/tsdump.c src/lang.c include/tree-sitter/lib/src/lib.c $(LDLIBS)
+$(BUILD_DIR)/tsag: $(R_OBJS) $(RDIR)/lib.o | $(BUILD_DIR)
+	$(CC) $(RCFLAGS) -o $@ $(R_OBJS) $(RDIR)/lib.o $(LDLIBS)
 
-$(BUILD_DIR):
+$(BUILD_DIR)/tsag-debug: $(D_OBJS) $(DDIR)/lib.o | $(BUILD_DIR)
+	$(CC) $(DCFLAGS) -o $@ $(D_OBJS) $(DDIR)/lib.o $(LDLIBS)
+
+$(BUILD_DIR)/tsag-asan: $(A_OBJS) $(ADIR)/lib.o | $(BUILD_DIR)
+	$(CC) $(ACFLAGS) -o $@ $(A_OBJS) $(ADIR)/lib.o $(LDLIBS)
+
+$(BUILD_DIR)/tsdump: $(RDIR)/tsdump.o $(RDIR)/lang.o $(RDIR)/lib.o | $(BUILD_DIR)
+	$(CC) $(RCFLAGS) -o $@ $(RDIR)/tsdump.o $(RDIR)/lang.o $(RDIR)/lib.o $(LDLIBS)
+
+$(RDIR)/%.o: src/%.c $(HDRS) | $(RDIR)
+	$(CC) $(RCFLAGS) -c $< -o $@
+
+$(DDIR)/%.o: src/%.c $(HDRS) | $(DDIR)
+	$(CC) $(DCFLAGS) -c $< -o $@
+
+$(ADIR)/%.o: src/%.c $(HDRS) | $(ADIR)
+	$(CC) $(ACFLAGS) -c $< -o $@
+
+$(RDIR)/lib.o: $(TS_SRC) | $(RDIR)
+	$(CC) $(RCFLAGS) -c $< -o $@
+
+$(DDIR)/lib.o: $(TS_SRC) | $(DDIR)
+	$(CC) $(DCFLAGS) -c $< -o $@
+
+$(ADIR)/lib.o: $(TS_SRC) | $(ADIR)
+	$(CC) $(ACFLAGS) -c $< -o $@
+
+$(RDIR)/tsdump.o: tools/tsdump.c $(HDRS) | $(RDIR)
+	$(CC) $(RCFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR) $(RDIR) $(DDIR) $(ADIR):
 	mkdir -p $@
 
 .PHONY: all debug asan clean run
