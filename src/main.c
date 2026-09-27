@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <dirent.h>
 #include <errno.h>
 #include <getopt.h>
@@ -12,11 +13,11 @@
 #include <sys/wait.h>
 #include <tree_sitter/api.h>
 #include <unistd.h>
-#include <assert.h>
 
 #include "ioqueue.h"
 #include "lang.h"
 #include "parse.h"
+#include "strstack.h"
 
 #define DEFAULT_OUTPUT_FILEPATH "tags"
 
@@ -254,43 +255,83 @@ static bool is_ignored(const char* path) {
   return false;
 }
 
-// TODO: convert to not be recursive
-static void enqueue_path(IoQueue* queue, const char* path) {
-  if (is_ignored(path)) return;
-  struct stat info;
-  if (lstat(path, &info) == -1) {
-    fprintf(stderr, "failed to stat '%s': %s\n", path, strerror(errno));
+static void enqueue_path(IoQueue* out_queue, const char* root) {
+  StrStack stack;
+  strstack_init(&stack);
+
+  char* root_copy = strdup(root);
+  if (!root_copy) {
+    fprintf(stderr, "out of memory\n");
+    strstack_free(&stack);
     return;
   }
-  if (S_ISDIR(info.st_mode)) { // is a directory
-    DIR* dir = opendir(path);
-    if (dir == NULL) {
-      fprintf(stderr, "failed to open directory: %s\n", path);
-      return;
+  if (strstack_push(&stack, root_copy) != 0) {
+    fprintf(stderr, "out of memory\n");
+    free(root_copy);
+    strstack_free(&stack);
+    return;
+  }
+
+  char* path;
+  while ((path = strstack_pop(&stack)) != NULL) {
+    if (is_ignored(path)) {
+      free(path);
+      continue;
     }
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-      if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-        size_t len = strlen(path) + 1 + strlen(entry->d_name) + 1;
-        char* fullpath = malloc(len);
-        if (!fullpath) continue;
-        if (strcmp(path, ".") == 0) {
-          strcpy(fullpath, entry->d_name);
-        } else {
-          snprintf(fullpath, len, "%s/%s", path, entry->d_name);
-        }
-        enqueue_path(queue, fullpath);
-        free(fullpath);
+
+    struct stat info;
+    if (lstat(path, &info) == -1) {
+      fprintf(stderr, "failed to stat '%s': %s\n", path, strerror(errno));
+      free(path);
+      continue;
+    }
+
+    if (S_ISDIR(info.st_mode)) { // is a directory
+      DIR* dir = opendir(path);
+      if (!dir) {
+        fprintf(stderr, "failed to open directory '%s': %s\n", path, strerror(errno));
+        free(path);
+        continue;
       }
+      struct dirent* entry;
+      while ((entry = readdir(dir))) {
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+          size_t flen = strlen(path) + 1 + strlen(entry->d_name) + 1;
+          char* fullpath = malloc(flen);
+          if (!fullpath) {
+            fprintf(stderr, "out of memory\n");
+            continue;
+          }
+          if (strcmp(path, ".") == 0) {
+            strcpy(fullpath, entry->d_name);
+          } else {
+            snprintf(fullpath, flen, "%s/%s", path, entry->d_name);
+          }
+          if (strstack_push(&stack, fullpath) != 0) {
+            fprintf(stderr, "out of memory\n");
+            free(fullpath);
+          }
+        }
+      }
+      closedir(dir);
+      free(path);
+    } else if (S_ISREG(info.st_mode)) { // is a regular file
+      const char* ext = find_extension(path);
+      if (!ext) {
+        free(path);
+        continue;
+      }
+      const char* lang = ext_to_lang(ext);
+      if (!lang) {
+        free(path);
+        continue;
+      }
+      io_queue_put(out_queue, path); // transfer ownership
+    } else {
+      free(path); // ignore links, sockets, etc.
     }
-    closedir(dir);
-  } else if (S_ISREG(info.st_mode)) { // is a regular file
-    const char* ext = find_extension(path);
-    if (!ext) return;
-    const char* lang = ext_to_lang(ext);
-    if (!lang) return;
-    io_queue_put(queue, strdup(path));
-  } // ignore links
+  }
+  strstack_free(&stack);
 }
 
 int main(int argc, char** argv) {
