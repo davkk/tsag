@@ -93,12 +93,24 @@ static char* escape_pattern(const char* src, size_t len) {
   return dst;
 }
 
-int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, FILE* out) {
+static void tag_vec_free_tag(Tag* tag) {
+  free(tag->name);
+  free(tag->pattern);
+  tag->name = NULL;
+  tag->pattern = NULL;
+}
+
+int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor,
+               TagVec* vec) {
   const char* ext = find_extension(filepath);
   if (!ext) return 1;
 
+  tag_vec_add_path(vec, filepath);
+
   const LangEntry* entry = lang_cache_get(cache, ext);
-  if (!entry) return 1;
+  if (!entry) {
+    return 1;
+  }
 
   if (!ts_parser_set_language(parser, entry->lang)) {
     fprintf(stderr, "Failed to set language for %s\n", filepath);
@@ -107,7 +119,9 @@ int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor
 
   size_t src_len = 0;
   char* source = read_file(filepath, &src_len);
-  if (!source) return 1;
+  if (!source) {
+    return 1;
+  }
 
   TSTree* tree = ts_parser_parse_string(parser, NULL, source, (uint32_t)src_len);
   if (!tree) {
@@ -118,6 +132,15 @@ int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor
 
   TSNode root = ts_tree_root_node(tree);
   ts_query_cursor_exec(cursor, entry->query, root);
+
+  typedef struct {
+    uint32_t start;
+    uint32_t end;
+    uint32_t pattern;
+    size_t idx;
+  } SeenName;
+  SeenName seen[1024];
+  size_t seen_count = 0;
 
   TSQueryMatch match;
   while (ts_query_cursor_next_match(cursor, &match)) {
@@ -152,7 +175,6 @@ int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor
     content = line;
     content_len = ll;
 
-    // TODO: do we need this?
     bool bad_name = false;
     for (size_t k = 0; k < name_len; k++) {
       if (!isprint((unsigned char)name[k])) {
@@ -165,8 +187,37 @@ int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor
     char* pattern = escape_pattern(content, content_len);
     if (!pattern) continue;
 
-    fprintf(out, "%.*s\t%s\t/^%s$/;\"\t%s\n", (int)name_len, name, filepath, pattern, kind);
-    free(pattern);
+    Tag tag = {
+        .name = strndup(name, name_len),
+        .file = filepath,
+        .pattern = pattern,
+        .kind = kind,
+    };
+
+    size_t tag_idx = vec->size;
+    for (size_t k = 0; k < seen_count; k++) {
+      if (seen[k].start == name_start && seen[k].end == name_end) {
+        if (match.pattern_index <= seen[k].pattern) {
+          tag_vec_free_tag(&tag);
+          goto next_match;
+        }
+        tag_idx = seen[k].idx;
+        seen[k].pattern = match.pattern_index;
+        break;
+      }
+    }
+
+    if (tag_idx == vec->size) {
+      if (seen_count < 1024) {
+        seen[seen_count++] = (SeenName){name_start, name_end, match.pattern_index, vec->size};
+      }
+      tag_vec_push(vec, &tag);
+    } else {
+      tag_vec_free_tag(&vec->tags[tag_idx]);
+      vec->tags[tag_idx] = tag;
+    }
+
+  next_match:;
   }
 
   ts_tree_delete(tree);

@@ -21,7 +21,7 @@ Single shared queue. No dispatcher, no per-language queues.
 
 ## Evidence from Tree-sitter source
 
-### ts_parser_set_language (parser.c:2019)
+### ts_parser_set_language
 
 ```
 ts_parser_set_language(parser, lang):
@@ -32,7 +32,7 @@ ts_parser_set_language(parser, lang):
   self->language = ts_language_copy(lang)  // identity for native
 ```
 
-### ts_parser_reset (parser.c:2078)
+### ts_parser_reset
 
 ```
 ts_parser_reset(self):
@@ -52,7 +52,7 @@ ts_parser_reset(self):
   canceled_balancing, parse_options, parse_state
 ```
 
-### TSLanguage (parser.h:107)
+### TSLanguage
 
 All tables are `const` pointers baked into the `.so` at compile time.
 No tables are rebuilt or copied on set_language. The struct is fully
@@ -76,6 +76,6 @@ The only switch-specific costs are:
 - New languages: add extension mapping + `.so` path. No dispatch
   changes.
 - Trivially scalable: one queue, N workers, N = `cores - 2`
-  (`src/main.c:142`). The decision still holds at 9 languages with
+  (worker setup). The decision still holds at 9 languages with
   lazy per-language loading -- switching cost stays negligible and no
   dispatch changes were needed for new languages.

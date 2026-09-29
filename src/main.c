@@ -10,14 +10,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <tree_sitter/api.h>
 #include <unistd.h>
 
+#include "heap.h"
 #include "ioqueue.h"
 #include "lang.h"
 #include "parse.h"
 #include "strstack.h"
+#include "tagvec.h"
 
 #define DEFAULT_OUTPUT_FILEPATH "tags"
 
@@ -86,75 +87,28 @@ typedef struct {
 
 static void* worker(void* arg) {
   WorkerArg* a = (WorkerArg*)arg;
-  TSParser* parser = NULL;
-  TSQueryCursor* cursor = NULL;
-  FILE* spill_file = NULL;
-  char spill_path[PATH_MAX];
-  bool spill_exists = false;
-
-  parser = ts_parser_new();
+  TSParser* parser = ts_parser_new();
   if (!parser) {
     fprintf(stderr, "Parser init failed\n");
-    goto cleanup;
+    return NULL;
   }
-  cursor = ts_query_cursor_new();
+  TSQueryCursor* cursor = ts_query_cursor_new();
   if (!cursor) {
     fprintf(stderr, "Cursor init failed\n");
-    goto cleanup;
+    ts_parser_delete(parser);
+    return NULL;
   }
 
-  // FIXME: tmp files are not removed if the process is killed/ctrl-c
-
-  int n = snprintf(spill_path, sizeof(spill_path), "%s.XXXXXX", a->cache_path);
-  if (n < 0 || (size_t)n >= sizeof(spill_path)) {
-    fprintf(stderr, "path too long\n");
-    goto cleanup;
-  }
-
-  int spill_fd = mkstemp(spill_path);
-  if (spill_fd == -1) {
-    fprintf(stderr, "spill file creation failed: %s\n", strerror(errno));
-    goto cleanup;
-  }
-
-  spill_exists = true;
-
-  spill_file = fdopen(spill_fd, "w");
-  if (!spill_file) {
-    fprintf(stderr, "spill file open failed: %s\n", strerror(errno));
-    close(spill_fd);
-    goto cleanup;
-  }
+  TagVec* vec = tag_vec_new(128);
 
   char* path;
   while ((path = (char*)io_queue_get(a->q)) != NULL) {
-    parse_file(path, a->lang_cache, parser, cursor, spill_file);
-    free(path);
+    parse_file(path, a->lang_cache, parser, cursor, vec);
   }
 
-  if (fflush(spill_file) != 0 || ferror(spill_file)) {
-    fprintf(stderr, "spill write failed: %s\n", strerror(errno));
-    goto cleanup;
-  }
-  if (fclose(spill_file) != 0) {
-    fprintf(stderr, "spill close failed: %s\n", strerror(errno));
-    spill_file = NULL;
-    goto cleanup;
-  }
-  spill_file = NULL;
+  tag_vec_sort(vec);
+  io_queue_put(a->outq, vec);
 
-  char* spill_path_copy = strdup(spill_path);
-  if (!spill_path_copy) {
-    fprintf(stderr, "spill path copy failed\n");
-    goto cleanup;
-  }
-
-  io_queue_put(a->outq, spill_path_copy);
-  spill_exists = false;
-
-cleanup:
-  if (spill_file) fclose(spill_file);
-  if (spill_exists) unlink(spill_path);
   ts_query_cursor_delete(cursor);
   ts_parser_delete(parser);
   return NULL;
@@ -163,85 +117,37 @@ cleanup:
 static void* merge(void* arg) {
   MergeArg* a = (MergeArg*)arg;
 
-  if (a->n <= 0) {
-    fprintf(stderr, "merge: invalid worker count\n");
-    return (void*)(intptr_t)1;
+  TagVec* batches[a->n];
+  size_t batch_count = 0;
+
+  TagVec* vec;
+  while ((vec = (TagVec*)io_queue_get(a->outq)) != NULL) {
+    batches[batch_count++] = vec;
   }
 
-  int pipefd[2];
-  if (pipe(pipefd) == -1) {
-    fprintf(stderr, "pipe: %s\n", strerror(errno));
-    return (void*)(intptr_t)1;
-  }
-
-  pid_t pid = fork();
-  if (pid == -1) {
-    fprintf(stderr, "fork: %s\n", strerror(errno));
-    close(pipefd[0]);
-    close(pipefd[1]);
-    return (void*)(intptr_t)1;
-  }
-
-  if (pid == 0) { // child
-    close(pipefd[1]);
-    if (dup2(pipefd[0], STDIN_FILENO) == -1) { // point child stdin to pipe read end
-      fprintf(stderr, "dup2 stdin: %s\n", strerror(errno));
-      _exit(127);
+  // populate
+  HeapEntry heap[a->n];
+  size_t heap_size = 0;
+  for (size_t i = 0; i < batch_count; ++i) {
+    if (batches[i]->size > 0) {
+      HeapEntry entry = {.batch = i, .idx = 0};
+      heap_push(heap, &heap_size, entry, batches);
     }
-    close(pipefd[0]);
-
-    setenv("LC_ALL", "C", 1);
-    setenv("LC_COLLATE", "C", 1);
-
-    if (a->out != stdout) { // point child stdout to output file
-      fflush(a->out);
-      if (dup2(fileno(a->out), STDOUT_FILENO) == -1) {
-        fprintf(stderr, "dup2 stdout: %s\n", strerror(errno));
-        _exit(127);
-      }
-    }
-
-    char* sort_argv[] = {"sort", "-u", NULL};
-    // FIXME: resolve absolute path to sort binary at compile time
-    execvp("sort", sort_argv);
-    fprintf(stderr, "exec sort: %s\n", strerror(errno));
-    _exit(127); // exit child
-    return NULL;
   }
 
-  // parent
-  close(pipefd[0]);
-  signal(SIGPIPE, SIG_IGN); // avoid dying if sort exits before we finish writing
-
-  char* path;
-  while ((path = io_queue_get(a->outq)) != NULL) {
-    FILE* f = fopen(path, "r");
-    if (!f) {
-      fprintf(stderr, "fopen %s: %s\n", path, strerror(errno));
-      free(path);
-      continue;
+  // drain
+  HeapEntry entry;
+  while (heap_pop(heap, &heap_size, &entry, batches)) {
+    Tag* tag = &batches[entry.batch]->tags[entry.idx];
+    fprintf(a->out, "%s\t%s\t/^%s$/;\"\t%s\n", tag->name, tag->file, tag->pattern, tag->kind);
+    if (entry.idx + 1 < batches[entry.batch]->size) {
+      entry.idx++;
+      heap_push(heap, &heap_size, entry, batches);
     }
-    char buf[65536];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
-      if (write(pipefd[1], buf, n) != (ssize_t)n) {
-        fprintf(stderr, "write to sort: %s\n", strerror(errno));
-        break;
-      }
-    }
-    fclose(f);
-    unlink(path);
-    free(path);
-  }
-  close(pipefd[1]);
-
-  int status = 0;
-  while (waitpid(pid, &status, 0) == -1 && errno == EINTR) {
   }
 
-  if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) { // check for child exit status
-    fprintf(stderr, "sort failed (status %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
-    return (void*)(intptr_t)1;
+  for (size_t i = 0; i < batch_count; ++i) {
+    tag_vec_free(batches[i]);
   }
 
   return NULL;

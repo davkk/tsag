@@ -1,7 +1,8 @@
 # Architecture
 
-Current state of the code. All `file:line` references are relative
-to the repo root.
+Current state of the code. Component and symbol names are used for
+orientation; no file or line references are kept here on purpose
+(they churn too fast to maintain).
 
 ## Pipeline overview
 
@@ -11,13 +12,13 @@ to the repo root.
   |  Discovery     |--->|  (IoQueue)   |--->|  (N = cores-2)   |--->|  (k-way) |
   |                |    |              |    |                  |    |          |
   | argv[1..]      |    |  bounded     |    |  per thread:     |    |  N -> 1  |
-  | or "." default |    |  cap = 256   |    |  TSParser        |    |  sorted  |
-  | recursive walk |    |  MPMC        |    |  TSQueryCursor   |    |  stdout  |
+  | or "." default |    |  cap = 512   |    |  TSParser        |    |  sorted  |
+  | recursive walk |    |  MPMC        |    |  TSQueryCursor   |    |  file    |
   | (no -R flag)   |    |  blocking    |    |  TagVec          |    +----------+
   +----------------+    +--------------+    |  lang cache      |
-                                            +------------------+
+                                             +------------------+
 
-  threads: 1 main + N workers + 1 merge          (src/main.c:142-179)
+  threads: 1 main + N workers + 1 merge
 ```
 
 ## Worker lifecycle
@@ -26,10 +27,10 @@ to the repo root.
   +----------------------------------------------------------------+
   |  loop:                                                         |
   |    path = work_q.get()         # blocks; NULL = closed+drained |
-  |    vec.add_path(path)          # ownership -> worker TagVec    |
-  |                                # (BEFORE ext check, parse.c:82)|
   |    ext = after last '.'  ------+-- none ----> skip            |
-  |                                |   (path retained)             |
+  |                                |   (path NOT retained)         |
+  |    vec.add_path(path)          # ownership -> worker TagVec    |
+  |                                # (AFTER ext check)             |
   |    entry = cache.get(ext) -----+-- unknown --> skip            |
   |                                |   (path retained)             |
   |    set_language(entry.lang)     # EVERY file, no fast path    |
@@ -40,7 +41,7 @@ to the repo root.
   |      @name + @kind.* --> Tag{ name, file=path, pattern, kind }    |
   |      skip: empty / non-printable name, missing kind               |
   |      dedup: same byte range keeps HIGHER pattern_index            |
-  |              (SeenName[1024], parse.c:115-199)                     |
+  |              (bounded per-file seen table)                         |
   |    free tree + src --> back to loop                               |
   |                                                                   |
   |  queue closed:                                                     |
@@ -52,11 +53,11 @@ to the repo root.
 
 ```
    Tag {                          TagVec (per worker, freed by merge)
-     name    -- owned ----------> strndup(name)        (parse.c:169)
-     file    -- borrowed -------- paths[i]            (parse.c:82,170)
-     pattern -- owned ----------> escape_pattern()    (parse.c:165)
+     name    -- owned ----------> strndup(name)
+     file    -- borrowed -------- paths[i]
+     pattern -- owned ----------> escape_pattern()
      kind    -- borrowed -------- query capture name  ("kind."+5)
-   }                               (parse.c:144, src/tagvec.h:9-14)
+   }
 
   no bump arena: one malloc per name + one per pattern, per tag.
 ```
@@ -69,44 +70,44 @@ to the repo root.
                        |               |               |
                        v               v               v
   Discovery --[strdup(path)]--> [ Work Queue ] --> worker --> [ Merge Queue ] --> merge
-  (main)                        cap = 256        TagVec*      cap = N
-                                paths,           sorted       (one slot
-                                count not bytes  per worker   per worker)
-                                (main.c:19)      (main.c:53)  (main.c:151)
+  (main)                        cap = 512        TagVec*      cap = N
+                                 paths,           sorted       (one slot
+                                 count not bytes  per worker   per worker)
 
-  get returns NULL only when closed AND drained  (src/ioqueue.c:42-60)
+  get returns NULL only when closed AND drained
 ```
 
 ## Language cache (shared)
 
 ```
-                +---------------------+
-                |  LanguageCache      |
-                |  entries[10] fixed  |  (src/lang.h:7-21, 9 langs used)
+                 +---------------------+
+                 |  LanguageCache      |
+                 |  entries[32] fixed  |  (9 langs used)
   Worker 1 --->|  lock               |
   get(ext)     |    hit:  scan,       |
                |      return, unlock   |
-  Worker 2 --->|    miss: dlopen +    |
-  get(ext)     |      dlsym +         |
-               |      ts_query_new    |
-               |      WHILE LOCKED,   |  <-- misses serialize,
-               |      append, unlock     even across languages
-                +---------------------+  (src/lang.c:125-151)
+  Worker 2 --->|    miss: unlock,     |
+  get(ext)     |      dlopen +        |
+               |      dlsym +         |
+               |      ts_query_new    |  <-- slow path runs WITHOUT
+               |      relock, recheck    the lock; concurrent misses
+               |      append, unlock     for different languages
+                +---------------------+  proceed in parallel
 
   Entry { name, dl_handle, TSLanguage*, TSQuery* }   # last two immutable,
                                                        shared read-only
 
-  load(lang):  <dir>/<lang>.so --> tree_sitter_<lang> --> QUERIES[] lookup
-               (src/queries.h) --> ts_query_new  (src/lang.c:26-89)
+  load(lang):  <dir>/<lang>.so --> tree_sitter_<lang> --> embedded
+               query lookup --> ts_query_new
                any failure --> NULL --> file skipped
 
-  <dir> = $TSAG_GRAMMARS or nvim parser dir fallback  (src/main.c:133-134)
+  <dir> = $TSAG_PARSERS or $XDG_DATA_HOME/tsag fallback
 ```
 
 ## Languages and queries
 
 ```
-  ext --> lang --> embedded query (src/queries.h QUERIES[], no .scm files)
+  ext --> lang --> embedded query table (no .scm files)
    |
    +-- c                        --> c
    +-- h, cpp, cc, hpp          --> cpp
@@ -116,7 +117,7 @@ to the repo root.
    +-- ts                       --> typescript
    +-- zig                      --> zig
    +-- rs                       --> rust
-   +-- go                       --> go          (src/lang.c:10-15)
+   +-- go                       --> go
 
   one @name / @kind.* capture set per language, compiled once at first use.
 ```
@@ -124,17 +125,19 @@ to the repo root.
 ## Discovery
 
 ```
-  enqueue_path(p)  (src/main.c:100-130)
+  enqueue_path(p)
+       |
+       +-- is_ignored -----------> warn-free drop, subtree pruned
+       |                         (substring match on .git, build)
        |
        +-- lstat fails --------> warn, drop
        |
        +-- dir ----------------> opendir/readdir --> recurse each child
        |                         ("." skips "./" prefix; "." / ".." skipped)
        |
-       +-- regular file -------> strdup(p) --> work queue
-       |                         (NO ext prefilter, NO ignore list:
-       |                          .git/, build/, bundles all enter here,
-       |                          rejected later by ext check, if at all)
+       +-- regular file -------> ext prefilter --> unknown ext: drop
+       |                      --> lang prefilter --> unknown lang: drop
+       |                      --> strdup(p) --> work queue
        |
        +-- else (symlink, ------> ignored
            fifo, socket)
@@ -146,20 +149,20 @@ to the repo root.
                           +----------------+
    Worker 1 -- TagVec ---->|                |
                            |  Merge Queue   |
-   Worker 2 -- TagVec ---->|  (IoQueue)     |--> k-way heap merge --> stdout
-                           |                |    (heap.h:12-20)
-   Worker N -- TagVec ---->|                |    pop smallest -> printf
+   Worker 2 -- TagVec ---->|  (IoQueue)     |--> k-way heap merge --> tags file
+                           |                |    pop smallest
+   Worker N -- TagVec ---->|                |    -> fprintf to out
                            +----------------+    -> advance batch -> push
                                 |
                     collect ALL batches FIRST,
                     nothing prints before last
-                    worker exits (main.c:61-98)
+                    worker exits
 ```
 
 ## Output format
 
 ```
-  stdout, one line per tag  (src/main.c:86):
+  tags file (or stdout with `-o -`), one line per tag:
 
   +------+----+------+----+----------------+----+------+
   | name | \t | file | \t | /^pattern$/;" | \t | kind |
@@ -175,14 +178,14 @@ to the repo root.
 
 ```
   corpus/<lang>.* --+-- tsag -- diff --> corpus/expected/<lang>.tags
-                    |                   (`make test` gates, `make bless` re-blesses)
+                    |                   (no make gate currently wires this;
+                    |                    compare by hand)
                     |
-                    +-- compare.sh -- vs -- ctags --sort=no
-                         (`make parity`, informational: kind vocabularies
-                          differ by design, so it tracks drift, no gate)
+                    +-- (no compare / parity target exists)
 
-  tools/tsdump.c ......... parse-tree dump helper (build/tsdump)
-  builds: tsag (-O2) / tsag-debug / tsag-asan / tsdump   (Makefile)
+  tsdump ............... parse-tree dump helper
+  builds: tsag (-O2) / tsag-debug / tsag-asan / tsdump
+  bench:  bench script samples RSS + wall into bench/<stamp>/
 ```
 
 ## Thread-safety
@@ -201,6 +204,6 @@ to the repo root.
   | Merge queue         | Yes (IoQueue)    | MPMC blocking    |
   | TagVec (worker)     | No (per thread)  | -                |
   | Source buf + TSTree | No (per file)    | freed per file   |
-  | stdout              | Merge thread only| single writer    |
+  | out file / stdout   | Merge thread only| single writer    |
   +---------------------+------------------+------------------+
 ```
