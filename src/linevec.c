@@ -1,6 +1,7 @@
 #include "linevec.h"
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,14 +18,19 @@ LineVec* line_vec_new(size_t cap) {
   return vec;
 }
 
-void line_vec_push(LineVec* vec, char* line) {
+int line_vec_push(LineVec* vec, char* line) {
   assert(vec && "vec is NULL");
   if (vec->len == vec->cap) {
-    vec->cap *= 2;
-    vec->items = realloc(vec->items, vec->cap * sizeof(char*));
+    if (vec->cap > SIZE_MAX / (2 * sizeof(char*))) return 0;
+    size_t new_cap = vec->cap * 2;
+    char** items = realloc(vec->items, new_cap * sizeof(char*));
+    if (!items) return 0;
+    vec->items = items;
+    vec->cap = new_cap;
   }
   vec->bytes += strlen(line);
   vec->items[vec->len++] = line;
+  return 1;
 }
 
 void line_vec_replace(LineVec* vec, size_t idx, char* line) {

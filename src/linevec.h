@@ -32,7 +32,7 @@ typedef struct {
 } Dedup;
 
 LineVec* line_vec_new(size_t cap);
-void line_vec_push(LineVec* vec, char* line);
+int line_vec_push(LineVec* vec, char* line);
 void line_vec_replace(LineVec* vec, size_t idx, char* line);
 void line_vec_sort(LineVec* vec);
 void line_vec_uniq(LineVec* vec);

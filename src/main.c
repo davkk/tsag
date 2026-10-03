@@ -3,6 +3,7 @@
 #include <libgen.h>
 #include <limits.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,8 +25,8 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  // Spill runs dir, reserved for LineVec + sort -m plan (refactor.qf).
-  // Currently passed through to workers but not yet used.
+  // Spill runs dir for LineVec batching (see spill.h). Workers flush
+  // full batches to sorted run files here when over the byte limit.
   char cwd[PATH_MAX];
   if (!getcwd(cwd, sizeof(cwd))) {
     fprintf(stderr, "getcwd: %s\n", strerror(errno));
@@ -117,14 +118,27 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  WorkerArg worker_arg = {queue, out_queue, lang_cache, cache_path};
+  WorkerArg* wargs = malloc((size_t)jobs * sizeof(*wargs));
+  if (!wargs) {
+    fprintf(stderr, "out of memory\n");
+    free(threads);
+    io_queue_free(out_queue);
+    io_queue_free(queue);
+    if (out != stdout) fclose(out);
+    lang_cache_free(lang_cache);
+    return 1;
+  }
+  for (long i = 0; i < jobs; i++) {
+    wargs[i] = (WorkerArg){queue, out_queue, lang_cache, cache_path, (int)i};
+  }
 
   for (long i = 0; i < jobs; i++) {
-    int rc = pthread_create(&threads[i], NULL, worker, &worker_arg);
+    int rc = pthread_create(&threads[i], NULL, worker, &wargs[i]);
     if (rc) {
       fprintf(stderr, "Failed to create thread %ld\n", i);
       io_queue_close(queue);
       io_queue_close(out_queue);
+      free(wargs);
       free(threads);
       io_queue_free(out_queue);
       io_queue_free(queue);
@@ -134,7 +148,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  MergeArg merge_arg = {out_queue, (int)jobs, out};
+  bool to_stdout = opts.output && strcmp(opts.output, "-") == 0;
+  MergeArg merge_arg = {out_queue, (int)jobs, out,
+                        to_stdout ? NULL : (opts.output ? opts.output : DEFAULT_OUTPUT_FILEPATH), cache_path};
   pthread_t merge_thread;
   int merge_rc = pthread_create(&merge_thread, NULL, merge, &merge_arg);
   if (merge_rc) {
@@ -144,6 +160,7 @@ int main(int argc, char** argv) {
       pthread_join(threads[i], NULL);
     }
     io_queue_close(out_queue);
+    free(wargs);
     free(threads);
     io_queue_free(out_queue);
     io_queue_free(queue);
@@ -171,6 +188,7 @@ int main(int argc, char** argv) {
   io_queue_close(out_queue);
   pthread_join(merge_thread, NULL);
 
+  free(wargs);
   free(threads);
   io_queue_free(out_queue);
   io_queue_free(queue);

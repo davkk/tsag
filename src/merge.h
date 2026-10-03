@@ -9,6 +9,8 @@ typedef struct {
   IoQueue* outq;
   int n;
   FILE* out;
+  const char* out_path;  // NULL when writing to stdout ("-o -")
+  const char* cache_dir; // spill runs live here
 } MergeArg;
 
 void* merge(void* arg);

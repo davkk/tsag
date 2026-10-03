@@ -162,9 +162,11 @@ static char* make_line(const MatchInfo* m, const char* source, size_t src_len, c
   return out;
 }
 
-// Parse one file, appending formatted lines. Never retains filepath;
-// the caller frees it after return in all cases.
-int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, LineVec* vec) {
+// Parse one file, appending formatted lines. Flushes full batches to spill
+// runs mid-file, so one pathological file cannot grow memory without
+// bound. Never retains filepath; the caller frees it after return.
+int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, LineVec* vec,
+                     Spill* spill) {
   const char* ext = find_extension(filepath);
   if (!ext) return 1;
 
@@ -197,10 +199,27 @@ int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQuery
   Dedup seen;
   dedup_init(&seen);
 
+  // Batching: flush BEFORE claim so table indices always refer to the
+  // current vec. Flush only on a key change: same-range matches from
+  // overlapping patterns arrive consecutively, so a key that leaves the
+  // batch never comes back and the post-flush table reset is exact.
+  uint32_t fstart = 0;
+  uint32_t fend = 0;
+  bool have_key = false;
+
   TSQueryMatch match;
   while (ts_query_cursor_next_match(cursor, &match)) {
     MatchInfo m;
     if (!extract_match(&match, entry->query, source, &m)) continue;
+
+    if (have_key && vec->bytes >= spill->limit && (m.start != fstart || m.end != fend)) {
+      if (spill_flush(spill, vec)) dedup_init(&seen);
+      // On I/O error the vec is untouched: keep accumulating in memory
+      // rather than lose tags. Boundedness is best-effort from here.
+    }
+    fstart = m.start;
+    fend = m.end;
+    have_key = true;
 
     // Claim before allocating: drops never malloc.
     size_t slot = 0;
@@ -210,8 +229,12 @@ int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQuery
     if (!line) continue;
 
     if (slot == vec->len) {
-      dedup_track(&seen, m.start, m.end, match.pattern_index, vec->len);
-      line_vec_push(vec, line);
+      size_t idx = vec->len;
+      if (!line_vec_push(vec, line)) {
+        free(line);
+        continue;
+      }
+      dedup_track(&seen, m.start, m.end, match.pattern_index, idx);
     } else {
       line_vec_replace(vec, slot, line);
     }
