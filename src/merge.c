@@ -3,16 +3,16 @@
 #include <stdio.h>
 
 #include "heap.h"
-#include "tagvec.h"
+#include "linevec.h"
 
 void* merge(void* arg) {
   MergeArg* a = (MergeArg*)arg;
 
-  TagVec* batches[a->n];
+  LineVec* batches[a->n];
   size_t batch_count = 0;
 
-  TagVec* vec;
-  while ((vec = (TagVec*)io_queue_get(a->outq)) != NULL) {
+  LineVec* vec;
+  while ((vec = (LineVec*)io_queue_get(a->outq)) != NULL) {
     batches[batch_count++] = vec;
   }
 
@@ -20,7 +20,7 @@ void* merge(void* arg) {
   HeapEntry heap[a->n];
   size_t heap_size = 0;
   for (size_t i = 0; i < batch_count; ++i) {
-    if (batches[i]->size > 0) {
+    if (batches[i]->len > 0) {
       HeapEntry entry = {.batch = i, .idx = 0};
       heap_push(heap, &heap_size, entry, batches);
     }
@@ -29,16 +29,15 @@ void* merge(void* arg) {
   // drain
   HeapEntry entry;
   while (heap_pop(heap, &heap_size, &entry, batches)) {
-    Tag* tag = &batches[entry.batch]->tags[entry.idx];
-    fprintf(a->out, "%s\t%s\t/^%s$/;\"\t%s\n", tag->name, tag->file, tag->pattern, tag->kind);
-    if (entry.idx + 1 < batches[entry.batch]->size) {
+    fputs(batches[entry.batch]->items[entry.idx], a->out);
+    if (entry.idx + 1 < batches[entry.batch]->len) {
       entry.idx++;
       heap_push(heap, &heap_size, entry, batches);
     }
   }
 
   for (size_t i = 0; i < batch_count; ++i) {
-    tag_vec_free(batches[i]);
+    line_vec_free(batches[i]);
   }
 
   return NULL;

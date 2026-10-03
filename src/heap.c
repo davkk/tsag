@@ -2,17 +2,11 @@
 
 #include <string.h>
 
-static bool heap_less(TagVec** batches, const HeapEntry* a, const HeapEntry* b) {
-  TagVec* ab = batches[a->batch];
-  TagVec* bb = batches[b->batch];
-  Tag* at = &ab->tags[a->idx];
-  Tag* bt = &bb->tags[b->idx];
-  int cmp = strcmp(at->name, bt->name);
-  if (cmp != 0) return cmp < 0;
-  return strcmp(at->file, bt->file) < 0;
+static bool heap_less(LineVec** batches, const HeapEntry* a, const HeapEntry* b) {
+  return strcmp(batches[a->batch]->items[a->idx], batches[b->batch]->items[b->idx]) < 0;
 }
 
-static void heap_heapify_up(HeapEntry heap[], size_t idx, TagVec** batches) {
+static void heap_heapify_up(HeapEntry heap[], size_t idx, LineVec** batches) {
   if (idx == 0) return;
   size_t p = (idx - 1) / 2;
   if (heap_less(batches, &heap[idx], &heap[p])) {
@@ -23,7 +17,7 @@ static void heap_heapify_up(HeapEntry heap[], size_t idx, TagVec** batches) {
   }
 }
 
-static void heap_heapify_down(HeapEntry heap[], size_t idx, size_t* size, TagVec** batches) {
+static void heap_heapify_down(HeapEntry heap[], size_t idx, size_t* size, LineVec** batches) {
   size_t smallest = idx;
   size_t l = idx * 2 + 1;
   size_t r = idx * 2 + 2;
@@ -37,13 +31,13 @@ static void heap_heapify_down(HeapEntry heap[], size_t idx, size_t* size, TagVec
   }
 }
 
-void heap_push(HeapEntry heap[], size_t* size, HeapEntry entry, TagVec** batches) {
+void heap_push(HeapEntry heap[], size_t* size, HeapEntry entry, LineVec** batches) {
   heap[*size] = entry;
   heap_heapify_up(heap, *size, batches);
   (*size)++;
 }
 
-bool heap_pop(HeapEntry heap[], size_t* size, HeapEntry* out, TagVec** batches) {
+bool heap_pop(HeapEntry heap[], size_t* size, HeapEntry* out, LineVec** batches) {
   if (*size == 0) return false;
   *out = heap[0];
   heap[0] = heap[*size - 1];

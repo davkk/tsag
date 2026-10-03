@@ -135,32 +135,38 @@ static bool name_is_printable(const char* name, size_t len) {
   return true;
 }
 
-// Build an owned Tag from a validated match. Returns false on OOM / bad name.
-static bool make_tag(const MatchInfo* m, const char* source, size_t src_len, char* filepath, Tag* out) {
-  if (!name_is_printable(m->name, m->name_len)) return false;
+// Format one owned output line. Same bytes as the old Tag fprintf.
+// Returns NULL on bad name or OOM. Filepath is copied; nothing borrowed.
+static char* make_line(const MatchInfo* m, const char* source, size_t src_len, const char* filepath) {
+  if (!name_is_printable(m->name, m->name_len)) return NULL;
 
   const char* line;
   size_t line_len;
   line_range(source, src_len, m->start, &line, &line_len);
 
   char* pattern = escape_pattern(line, line_len);
-  if (!pattern) return false;
+  if (!pattern) return NULL;
 
-  char* name = strndup(m->name, m->name_len);
-  if (!name) {
+  int n = snprintf(NULL, 0, "%.*s\t%s\t/^%s$/;\"\t%s\n", (int)m->name_len, m->name, filepath, pattern, m->kind);
+  if (n < 0) {
     free(pattern);
-    return false;
+    return NULL;
   }
-
-  *out = (Tag){.name = name, .file = filepath, .pattern = pattern, .kind = m->kind};
-  return true;
+  char* out = malloc((size_t)n + 1);
+  if (!out) {
+    free(pattern);
+    return NULL;
+  }
+  snprintf(out, (size_t)n + 1, "%.*s\t%s\t/^%s$/;\"\t%s\n", (int)m->name_len, m->name, filepath, pattern, m->kind);
+  free(pattern);
+  return out;
 }
 
-int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, TagVec* vec) {
+// Parse one file, appending formatted lines. Never retains filepath;
+// the caller frees it after return in all cases.
+int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, LineVec* vec) {
   const char* ext = find_extension(filepath);
   if (!ext) return 1;
-
-  tag_vec_add_path(vec, filepath);
 
   const LangEntry* entry = lang_cache_get(cache, ext);
   if (!entry) {
@@ -188,8 +194,8 @@ int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor
   TSNode root = ts_tree_root_node(tree);
   ts_query_cursor_exec(cursor, entry->query, root);
 
-  TagDedup seen;
-  tag_dedup_init(&seen);
+  Dedup seen;
+  dedup_init(&seen);
 
   TSQueryMatch match;
   while (ts_query_cursor_next_match(cursor, &match)) {
@@ -198,16 +204,16 @@ int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor
 
     // Claim before allocating: drops never malloc.
     size_t slot = 0;
-    if (!tag_dedup_claim(&seen, m.start, m.end, match.pattern_index, vec->size, &slot)) continue;
+    if (!dedup_claim(&seen, m.start, m.end, match.pattern_index, vec->len, &slot)) continue;
 
-    Tag tag;
-    if (!make_tag(&m, source, src_len, filepath, &tag)) continue;
+    char* line = make_line(&m, source, src_len, filepath);
+    if (!line) continue;
 
-    if (slot == vec->size) {
-      tag_dedup_track(&seen, m.start, m.end, match.pattern_index, vec->size);
-      tag_vec_push(vec, &tag);
+    if (slot == vec->len) {
+      dedup_track(&seen, m.start, m.end, match.pattern_index, vec->len);
+      line_vec_push(vec, line);
     } else {
-      tag_vec_replace(vec, slot, &tag);
+      line_vec_replace(vec, slot, line);
     }
   }
 

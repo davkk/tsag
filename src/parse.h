@@ -2,8 +2,8 @@
 #define PARSE_H
 
 #include "lang.h"
-#include "tagvec.h"
+#include "linevec.h"
 
-int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, TagVec* vec);
+int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, LineVec* vec);
 
 #endif

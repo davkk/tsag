@@ -1,10 +1,11 @@
 #include "worker.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <tree_sitter/api.h>
 
+#include "linevec.h"
 #include "parse.h"
-#include "tagvec.h"
 
 void* worker(void* arg) {
   WorkerArg* a = (WorkerArg*)arg;
@@ -20,14 +21,16 @@ void* worker(void* arg) {
     return NULL;
   }
 
-  TagVec* vec = tag_vec_new(128);
+  LineVec* vec = line_vec_new(128);
 
   char* path;
   while ((path = (char*)io_queue_get(a->q)) != NULL) {
-    parse_file(path, a->lang_cache, parser, cursor, vec);
+    parse_file_lines(path, a->lang_cache, parser, cursor, vec);
+    free(path); // lines copy what they need; nothing borrowed
   }
 
-  tag_vec_sort(vec);
+  line_vec_sort(vec);
+  line_vec_uniq(vec);
   io_queue_put(a->outq, vec);
 
   ts_query_cursor_delete(cursor);

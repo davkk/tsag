@@ -14,7 +14,7 @@ orientation; no file or line references are kept here on purpose
   | argv[1..]      |    |  bounded     |    |  per thread:     |    |  N -> 1  |
   | or "." default |    |  cap = 512   |    |  TSParser        |    |  sorted  |
   | recursive walk |    |  MPMC        |    |  TSQueryCursor   |    |  file    |
-  | (no -R flag)   |    |  blocking    |    |  TagVec          |    +----------+
+  | (no -R flag)   |    |  blocking    |    |  LineVec         |    +----------+
   +----------------+    +--------------+    |  lang cache      |
                                              +------------------+
 
@@ -27,39 +27,35 @@ orientation; no file or line references are kept here on purpose
   +----------------------------------------------------------------+
   |  loop:                                                         |
   |    path = work_q.get()         # blocks; NULL = closed+drained |
-  |    ext = after last '.'  ------+-- none ----> skip            |
-  |                                |   (path NOT retained)         |
-  |    vec.add_path(path)          # ownership -> worker TagVec    |
-  |                                # (AFTER ext check)             |
-  |    entry = cache.get(ext) -----+-- unknown --> skip            |
-  |                                |   (path retained)             |
+  |    ext = after last '.'  ------+-- none ----> skip, free path |
+  |    entry = cache.get(ext) -----+-- unknown --> skip, free path |
   |    set_language(entry.lang)     # EVERY file, no fast path    |
   |    src = read whole file       # malloc(n+1); fail -> skip    |
   |    tree = parse_string(src)                                       |
   |    cursor.exec(entry.query, root)                                 |
   |    for each match:                                                |
-  |      @name + @kind.* --> Tag{ name, file=path, pattern, kind }    |
+  |      claim(seen, range, pat) --> drop? skip BEFORE any malloc     |
+  |      @name + @kind.* --> line "name\tfile\t/^pat$/;\"\tkind\n"  |
+  |      (filepath copied; nothing borrowed)                         |
   |      skip: empty / non-printable name, missing kind               |
   |      dedup: same byte range keeps HIGHER pattern_index            |
-  |              (bounded per-file seen table)                         |
-  |    free tree + src --> back to loop                               |
+  |              (bounded per-file table, cap 1024)                   |
+  |    free tree + src + path --> back to loop                        |
   |                                                                   |
   |  queue closed:                                                     |
-  |    sort TagVec (qsort: name, file) --> merge_q.put(vec)            |
+  |    sort LineVec (qsort: strcmp full line) + uniq --> merge_q       |
   +----------------------------------------------------------------+
 ```
 
 ## Tag ownership
 
 ```
-   Tag {                          TagVec (per worker, freed by merge)
-     name    -- owned ----------> strndup(name)
-     file    -- borrowed -------- paths[i]
-     pattern -- owned ----------> escape_pattern()
-     kind    -- borrowed -------- query capture name  ("kind."+5)
-   }
+   LineVec (per worker, freed by merge): char** of fully formatted,
+   owned lines. Filepath is copied into each line; kind points into
+   the query only transiently during formatting. One retained malloc
+   per tag (the line) plus a transient escape buffer.
 
-  no bump arena: one malloc per name + one per pattern, per tag.
+   no bump arena; no borrowed fields; safe to sort, pass, and spill.
 ```
 
 ## Queues
@@ -70,8 +66,8 @@ orientation; no file or line references are kept here on purpose
                        |               |               |
                        v               v               v
   Discovery --[strdup(path)]--> [ Work Queue ] --> worker --> [ Merge Queue ] --> merge
-  (main)                        cap = 512        TagVec*      cap = N
-                                 paths,           sorted       (one slot
+  (main)                        cap = 512        LineVec*      cap = N
+                                 paths,           sorted+uniq   (one slot
                                  count not bytes  per worker   per worker)
 
   get returns NULL only when closed AND drained
@@ -147,11 +143,11 @@ orientation; no file or line references are kept here on purpose
 
 ```
                           +----------------+
-   Worker 1 -- TagVec ---->|                |
+   Worker 1 -- LineVec --->|                |
                            |  Merge Queue   |
-   Worker 2 -- TagVec ---->|  (IoQueue)     |--> k-way heap merge --> tags file
-                           |                |    pop smallest
-   Worker N -- TagVec ---->|                |    -> fprintf to out
+   Worker 2 -- LineVec --->|  (IoQueue)     |--> k-way heap merge --> tags file
+                           |                |    pop smallest (strcmp)
+   Worker N -- LineVec --->|                |    -> fputs to out
                            +----------------+    -> advance batch -> push
                                 |
                     collect ALL batches FIRST,
@@ -170,8 +166,8 @@ orientation; no file or line references are kept here on purpose
      |          |          |                       |
      |          |          +-- escaped source line  +-- capture suffix
      |          |              of the kind node         after "kind."
-     |          +-- borrowed paths[] entry             (function, struct,
-     +-- owned strndup                                 method, ...)
+     |          +-- copied into the owned line per tag (function, struct,
+     +-- copied into the owned line                      method, ...)
 ```
 
 ## Tooling, tests, corpus
@@ -202,7 +198,7 @@ orientation; no file or line references are kept here on purpose
   | Language cache      | Yes (mutex)      | locked, load once|
   | Work queue          | Yes (IoQueue)    | MPMC blocking    |
   | Merge queue         | Yes (IoQueue)    | MPMC blocking    |
-  | TagVec (worker)     | No (per thread)  | -                |
+  | LineVec (worker)    | No (per thread)  | -                |
   | Source buf + TSTree | No (per file)    | freed per file   |
   | out file / stdout   | Merge thread only| single writer    |
   +---------------------+------------------+------------------+
