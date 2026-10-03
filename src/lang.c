@@ -1,5 +1,6 @@
 #include <dlfcn.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,6 +98,16 @@ cleanup:
   return NULL;
 }
 
+// Drop a loaded entry that lost the insert race. Mirrors the cleanup
+// path above: fields are NULL unless their step succeeded.
+static void load_lang_free(LangEntry* entry) {
+  if (!entry) return;
+  free(entry->name);
+  ts_query_delete(entry->query);
+  if (entry->dl_handle) dlclose(entry->dl_handle);
+  free(entry);
+}
+
 LangCache* lang_cache_new(const char* parser_dir) {
   LangCache* cache = calloc(1, sizeof(LangCache));
   if (!cache) return NULL;
@@ -114,6 +125,14 @@ LangCache* lang_cache_new(const char* parser_dir) {
     free(cache);
     return NULL;
   }
+  rc = pthread_cond_init(&cache->loaded, NULL);
+  if (rc != 0) {
+    fprintf(stderr, "pthread_cond_init failed: %s\n", strerror(rc));
+    pthread_mutex_destroy(&cache->lock);
+    free(cache->parser_dir);
+    free(cache);
+    return NULL;
+  }
 
   return cache;
 }
@@ -127,6 +146,7 @@ void lang_cache_free(LangCache* cache) {
     free(entry->name);
   }
   pthread_mutex_destroy(&cache->lock);
+  pthread_cond_destroy(&cache->loaded);
   free(cache->parser_dir);
   free(cache);
 }
@@ -135,26 +155,68 @@ const LangEntry* lang_cache_get(LangCache* cache, const char* ext) {
   const char* name = ext_to_lang(ext);
   if (!name) return NULL;
 
-  pthread_mutex_lock(&cache->lock);
-  for (size_t i = 0; i < cache->entry_count; ++i) {
-    if (strcmp(cache->entries[i].name, name) == 0) {
-      pthread_mutex_unlock(&cache->lock);
-      return &cache->entries[i];
+  // Hit, miss with another thread loading, or first to load.
+  for (;;) {
+    pthread_mutex_lock(&cache->lock);
+    for (size_t i = 0; i < cache->entry_count; ++i) {
+      if (strcmp(cache->entries[i].name, name) == 0) {
+        pthread_mutex_unlock(&cache->lock);
+        return &cache->entries[i];
+      }
     }
+    bool in_flight = false;
+    for (size_t i = 0; i < cache->loading_count; ++i) {
+      if (cache->loading[i] == name) {
+        in_flight = true;
+        break;
+      }
+    }
+    if (!in_flight) break;
+    pthread_cond_wait(&cache->loaded, &cache->lock);
+    pthread_mutex_unlock(&cache->lock);
   }
-  if (cache->entry_count == MAX_LANGS) {
+
+  // First to load this language: mark it so same-language waiters park
+  // on the condvar while other languages load in parallel. No duplicate
+  // dlopen/compile, unlike loading fully unlocked.
+  if (cache->loading_count == MAX_LANGS || cache->entry_count == MAX_LANGS) {
     pthread_mutex_unlock(&cache->lock);
     fprintf(stderr, "Maximum number of languages reached\n");
     return NULL;
   }
+  cache->loading[cache->loading_count++] = name;
+  pthread_mutex_unlock(&cache->lock);
 
   LangEntry* tmp = load_lang(cache->parser_dir, name);
-  if (!tmp) {
-    pthread_mutex_unlock(&cache->lock);
+
+  // Unmark, insert if room, and wake same-language waiters. The index is
+  // captured under lock: entries[] is append-only, so it stays valid.
+  size_t idx = 0;
+  bool inserted = false;
+  pthread_mutex_lock(&cache->lock);
+  for (size_t i = 0; i < cache->loading_count; ++i) {
+    if (cache->loading[i] == name) {
+      cache->loading[i] = cache->loading[--cache->loading_count];
+      break;
+    }
+  }
+  if (tmp && cache->entry_count < MAX_LANGS) {
+    idx = cache->entry_count;
+    cache->entries[idx] = *tmp;
+    cache->entry_count++;
+    free(tmp);
+    tmp = NULL;
+    inserted = true;
+  }
+  pthread_cond_broadcast(&cache->loaded);
+  pthread_mutex_unlock(&cache->lock);
+
+  if (!inserted) {
+    if (tmp) {
+      fprintf(stderr, "Maximum number of languages reached\n");
+      load_lang_free(tmp);
+    }
     return NULL;
   }
-  cache->entries[cache->entry_count++] = *tmp;
-  free(tmp);
-  pthread_mutex_unlock(&cache->lock);
-  return &cache->entries[cache->entry_count - 1];
+  return &cache->entries[idx];
 }

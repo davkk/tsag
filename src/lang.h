@@ -15,9 +15,12 @@ typedef struct LangEntry {
 
 typedef struct LangCache {
   pthread_mutex_t lock;
+  pthread_cond_t loaded; // broadcast when entries[] or loading[] changes
   char* parser_dir;
   size_t entry_count;
   LangEntry entries[MAX_LANGS];
+  const char* loading[MAX_LANGS]; // EXT_LANG names with load in flight
+  size_t loading_count;
 } LangCache;
 
 const char* find_extension(const char* path);
