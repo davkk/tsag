@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -21,6 +22,21 @@ typedef struct {
   size_t path_count;
   size_t path_cap;
 } TagVec;
+
+// Per-file dedup: same byte range keeps the higher pattern_index.
+#define TAG_DEDUP_CAP 1024
+
+typedef struct {
+  uint32_t start;
+  uint32_t end;
+  uint32_t pattern;
+  size_t idx;
+} TagSeen;
+
+typedef struct {
+  TagSeen entries[TAG_DEDUP_CAP];
+  size_t count;
+} TagDedup;
 
 static inline TagVec* tag_vec_new(size_t cap) {
   assert(cap > 0 && "capacity must be greater than 0");
@@ -58,6 +74,43 @@ static inline void tag_vec_push(TagVec* vec, const Tag* tag) {
     vec->tags = realloc(vec->tags, vec->capacity * sizeof(Tag));
   }
   vec->tags[vec->size++] = *tag;
+}
+
+static inline void tag_dedup_init(TagDedup* d) {
+  d->count = 0;
+}
+
+// Insert tag, deduping on (start, end): higher pattern_index wins.
+// Takes ownership of tag->name/pattern in all cases: pushes, replaces,
+// or frees them when the incoming match loses. Returns 1 if kept, 0 if dropped.
+static inline int tag_vec_upsert(TagVec* vec, TagDedup* d, Tag* tag, uint32_t start, uint32_t end,
+                                uint32_t pattern) {
+  size_t slot = vec->size;
+  for (size_t k = 0; k < d->count; k++) {
+    if (d->entries[k].start == start && d->entries[k].end == end) {
+      if (pattern <= d->entries[k].pattern) {
+        free(tag->name);
+        free(tag->pattern);
+        return 0;
+      }
+      slot = d->entries[k].idx;
+      d->entries[k].pattern = pattern;
+      break;
+    }
+  }
+
+  if (slot == vec->size) {
+    if (d->count < TAG_DEDUP_CAP) {
+      d->entries[d->count++] = (TagSeen){start, end, pattern, vec->size};
+    }
+    tag_vec_push(vec, tag);
+    return 1;
+  }
+
+  free(vec->tags[slot].name);
+  free(vec->tags[slot].pattern);
+  vec->tags[slot] = *tag;
+  return 1;
 }
 
 static int compare_tags(const void* a, const void* b) {

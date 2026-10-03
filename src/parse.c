@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,11 +94,68 @@ static char* escape_pattern(const char* src, size_t len) {
   return dst;
 }
 
-static void tag_vec_free_tag(Tag* tag) {
-  free(tag->name);
-  free(tag->pattern);
-  tag->name = NULL;
-  tag->pattern = NULL;
+typedef struct {
+  const char* name;
+  size_t name_len;
+  const char* kind;
+  uint32_t start;
+  uint32_t end;
+} MatchInfo;
+
+// Pull @name / @kind.* out of a query match. Returns false when incomplete.
+static bool extract_match(const TSQueryMatch* match, TSQuery* query, const char* source, MatchInfo* out) {
+  const char* name = "";
+  size_t name_len = 0;
+  const char* kind = "";
+  uint32_t name_start = 0;
+  uint32_t name_end = 0;
+
+  for (uint16_t i = 0; i < match->capture_count; i++) {
+    TSQueryCapture cap = match->captures[i];
+    uint32_t cn_len = 0;
+    const char* cn = ts_query_capture_name_for_id(query, cap.index, &cn_len);
+
+    if (cn_len == 4 && memcmp(cn, "name", 4) == 0) {
+      name_start = ts_node_start_byte(cap.node);
+      name_end = ts_node_end_byte(cap.node);
+      name = source + name_start;
+      name_len = name_end - name_start;
+    } else if (cn_len > 5 && memcmp(cn, "kind.", 5) == 0) {
+      kind = cn + 5;
+    }
+  }
+
+  if (name_len == 0 || !kind[0]) return false;
+  *out = (MatchInfo){name, name_len, kind, name_start, name_end};
+  return true;
+}
+
+static bool name_is_printable(const char* name, size_t len) {
+  for (size_t k = 0; k < len; k++) {
+    if (!isprint((unsigned char)name[k])) return false;
+  }
+  return true;
+}
+
+// Build an owned Tag from a validated match. Returns false on OOM / bad name.
+static bool make_tag(const MatchInfo* m, const char* source, size_t src_len, char* filepath, Tag* out) {
+  if (!name_is_printable(m->name, m->name_len)) return false;
+
+  const char* line;
+  size_t line_len;
+  line_range(source, src_len, m->start, &line, &line_len);
+
+  char* pattern = escape_pattern(line, line_len);
+  if (!pattern) return false;
+
+  char* name = strndup(m->name, m->name_len);
+  if (!name) {
+    free(pattern);
+    return false;
+  }
+
+  *out = (Tag){.name = name, .file = filepath, .pattern = pattern, .kind = m->kind};
+  return true;
 }
 
 int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor,
@@ -133,91 +191,18 @@ int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor
   TSNode root = ts_tree_root_node(tree);
   ts_query_cursor_exec(cursor, entry->query, root);
 
-  typedef struct {
-    uint32_t start;
-    uint32_t end;
-    uint32_t pattern;
-    size_t idx;
-  } SeenName;
-  SeenName seen[1024];
-  size_t seen_count = 0;
+  TagDedup seen;
+  tag_dedup_init(&seen);
 
   TSQueryMatch match;
   while (ts_query_cursor_next_match(cursor, &match)) {
-    const char* name = "";
-    size_t name_len = 0;
-    const char* kind = "";
-    const char* content = "";
-    size_t content_len = 0;
-    uint32_t name_start = 0;
-    uint32_t name_end = 0;
+    MatchInfo m;
+    if (!extract_match(&match, entry->query, source, &m)) continue;
 
-    for (uint16_t i = 0; i < match.capture_count; i++) {
-      TSQueryCapture cap = match.captures[i];
-      uint32_t cn_len = 0;
-      const char* cn = ts_query_capture_name_for_id(entry->query, cap.index, &cn_len);
+    Tag tag;
+    if (!make_tag(&m, source, src_len, filepath, &tag)) continue;
 
-      if (cn_len == 4 && memcmp(cn, "name", 4) == 0) {
-        name_start = ts_node_start_byte(cap.node);
-        name_end = ts_node_end_byte(cap.node);
-        name = source + name_start;
-        name_len = name_end - name_start;
-      } else if (cn_len > 5 && memcmp(cn, "kind.", 5) == 0) {
-        kind = cn + 5;
-      }
-    }
-
-    if (name_len == 0 || !kind[0]) continue;
-
-    const char* line;
-    size_t ll;
-    line_range(source, src_len, name_start, &line, &ll);
-    content = line;
-    content_len = ll;
-
-    bool bad_name = false;
-    for (size_t k = 0; k < name_len; k++) {
-      if (!isprint((unsigned char)name[k])) {
-        bad_name = true;
-        break;
-      }
-    }
-    if (bad_name) continue;
-
-    char* pattern = escape_pattern(content, content_len);
-    if (!pattern) continue;
-
-    Tag tag = {
-        .name = strndup(name, name_len),
-        .file = filepath,
-        .pattern = pattern,
-        .kind = kind,
-    };
-
-    size_t tag_idx = vec->size;
-    for (size_t k = 0; k < seen_count; k++) {
-      if (seen[k].start == name_start && seen[k].end == name_end) {
-        if (match.pattern_index <= seen[k].pattern) {
-          tag_vec_free_tag(&tag);
-          goto next_match;
-        }
-        tag_idx = seen[k].idx;
-        seen[k].pattern = match.pattern_index;
-        break;
-      }
-    }
-
-    if (tag_idx == vec->size) {
-      if (seen_count < 1024) {
-        seen[seen_count++] = (SeenName){name_start, name_end, match.pattern_index, vec->size};
-      }
-      tag_vec_push(vec, &tag);
-    } else {
-      tag_vec_free_tag(&vec->tags[tag_idx]);
-      vec->tags[tag_idx] = tag;
-    }
-
-  next_match:;
+    tag_vec_upsert(vec, &seen, &tag, m.start, m.end, match.pattern_index);
   }
 
   ts_tree_delete(tree);
