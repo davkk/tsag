@@ -2,9 +2,7 @@
 
 #include <string.h>
 
-// Full-line strcmp: matches line_vec_sort order and LC_ALL=C sort -m -u.
-// Differs from the old (name,file) Tag order only for same-name same-file
-// ties with different patterns, where it is deterministic.
+// Full-line strcmp; same-name same-file ties order deterministically.
 static bool heap_less(LineVec** batches, const HeapEntry* a, const HeapEntry* b) {
   return strcmp(batches[a->batch]->items[a->idx], batches[b->batch]->items[b->idx]) < 0;
 }

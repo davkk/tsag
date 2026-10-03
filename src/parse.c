@@ -12,11 +12,9 @@
 
 #define MAX_LINE_LEN 512
 #define MAX_FILE_SIZE (2UL * 1024 * 1024) // 2 MiB: skip huge/generated files
-// A source line longer than this marks the file as generated/minified:
-// skip before paying for tree-sitter. Real code stays far below it.
+// Over 4096 chars in any line => generated/minified; skip before parsing.
 #define MAX_SRC_LINE_LEN 4096
-// Hard bound on query matches examined per file. Real files produce
-// dozens; only generated blobs hit this, and their tags are junk.
+// Upper bound on matches per file; only generated blobs hit it.
 #define MAX_MATCHES_PER_FILE 4096
 
 static char* read_file(const char* path, size_t* out_len) {
@@ -50,7 +48,6 @@ static char* read_file(const char* path, size_t* out_len) {
   return buf;
 }
 
-// True when any source line exceeds MAX_SRC_LINE_LEN: generated/minified.
 static bool has_long_line(const char* src, size_t len) {
   size_t run = 0;
   for (size_t i = 0; i < len; i++) {
@@ -154,8 +151,7 @@ static bool name_is_printable(const char* name, size_t len) {
   return true;
 }
 
-// Format one owned output line. Same bytes as the old Tag fprintf.
-// Returns NULL on bad name or OOM. Filepath is copied; nothing borrowed.
+// Owned output line; NULL on bad name or OOM.
 static char* make_line(const MatchInfo* m, const char* source, size_t src_len, const char* filepath) {
   if (!name_is_printable(m->name, m->name_len)) return NULL;
 
@@ -181,9 +177,7 @@ static char* make_line(const MatchInfo* m, const char* source, size_t src_len, c
   return out;
 }
 
-// Parse one file, appending formatted lines. Skips generated files and
-// caps matches so one pathological file cannot grow memory without
-// bound. Never retains filepath; the caller frees it after return.
+// Appends lines; skips generated files, caps matches. Caller frees filepath.
 int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, LineVec* vec) {
   const char* ext = find_extension(filepath);
   if (!ext) return 1;

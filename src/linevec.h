@@ -4,10 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// A tag is a fully formatted, owned output line:
-//   "name\tfile\t/^pattern$/;\"\tkind\n"
-// Single ownership (free each line) replaces Tag's mixed owned/borrowed
-// fields, so a vec is trivial to sort, uniq, and pass across threads.
+// One owned "name\tfile\t/^pattern$/;"\tkind" line per tag; nothing borrowed.
 typedef struct {
   char** items; // owned lines
   size_t len;
@@ -39,11 +36,7 @@ void line_vec_free(LineVec* vec);
 
 void dedup_init(Dedup* d);
 
-// Reserve a slot for (start, end, pattern) without allocating strings.
-// Returns 0 if this match loses and must be skipped, 1 if it survives.
-// On survive, *slot is vec_len (push) or the existing index (replace;
-// stored pattern already updated). Push path must call dedup_track
-// after a successful push to record the new key.
+// 0 = drop, 1 = survive (*slot set); pushes must dedup_track afterwards.
 int dedup_claim(Dedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t vec_len, size_t* slot);
 void dedup_track(Dedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t idx);
 

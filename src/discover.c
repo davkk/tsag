@@ -12,13 +12,10 @@
 #include "strstack.h"
 
 static const char* IGNORED_FILES[] = {".git", "build", "dist"};
-// NOTE: node_modules, .venv, vendor/ are deliberately NOT ignored; they are
-// indexed on purpose (library definitions).
+// NOTE: node_modules, .venv, vendor/ are indexed on purpose (library defs).
 
 static bool is_ignored(const char* path) {
-  // TODO: add --exclude flag and add more dirs
-  // Match whole path components only, so e.g. "build-xcframework.sh" and
-  // "a/distillery/x.c" are kept while "build/" and "a/dist/x.c" are pruned.
+  // TODO: --exclude flag; matching is whole-components only (not substring).
   const char* p = path;
   for (;;) {
     while (*p == '/') p++;
