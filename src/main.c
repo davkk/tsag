@@ -1,10 +1,12 @@
 #include <assert.h>
 #include <errno.h>
+#include <libgen.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "discover.h"
@@ -20,6 +22,38 @@ int main(int argc, char** argv) {
   Options opts = {0};
   if (parse_options(argc, argv, &opts) != 0) {
     return 2;
+  }
+
+  // Spill runs dir, reserved for LineVec + sort -m plan (refactor.qf).
+  // Currently passed through to workers but not yet used.
+  char cwd[PATH_MAX];
+  if (!getcwd(cwd, sizeof(cwd))) {
+    fprintf(stderr, "getcwd: %s\n", strerror(errno));
+    return 1;
+  }
+  char* dirname = basename(cwd);
+  if (!dirname) {
+    fprintf(stderr, "basename failed\n");
+    return 1;
+  }
+
+  char* xdg_cache_dir = getenv("XDG_CACHE_HOME");
+  char base_cache_path[PATH_MAX];
+  int n = snprintf(base_cache_path, sizeof(base_cache_path), "%s/tsag", xdg_cache_dir ? xdg_cache_dir : "/tmp");
+  if (n < 0 || (size_t)n >= sizeof(base_cache_path)) {
+    fprintf(stderr, "base cache path too long\n");
+    return 1;
+  }
+  if (mkdir(base_cache_path, 0755) == -1 && errno != EEXIST) {
+    fprintf(stderr, "base cache dir '%s' creation failed: %s\n", base_cache_path, strerror(errno));
+    return 1;
+  }
+
+  char cache_path[PATH_MAX];
+  n = snprintf(cache_path, sizeof(cache_path), "%s/%s", base_cache_path, dirname ? dirname : "tmp");
+  if (n < 0 || (size_t)n >= sizeof(cache_path)) {
+    fprintf(stderr, "cache path too long\n");
+    return 1;
   }
 
   char* parsers_dir = getenv("TSAG_PARSERS");
@@ -83,7 +117,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  WorkerArg worker_arg = {queue, out_queue, lang_cache};
+  WorkerArg worker_arg = {queue, out_queue, lang_cache, cache_path};
 
   for (long i = 0; i < jobs; i++) {
     int rc = pthread_create(&threads[i], NULL, worker, &worker_arg);
