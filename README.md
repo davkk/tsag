@@ -12,7 +12,7 @@
 
 ```
   Discovery (main thread, recursive walk)
-    -> Work Queue (IoQueue, cap 256)
+    -> Work Queue (IoQueue, cap 512)
     -> Worker Pool, N = cores-2 (TSParser + TSQueryCursor + TagVec each,
        grammars lazy-loaded via shared LangCache)
     -> Merge Queue (cap N) -> k-way heap merge -> ctags on stdout

@@ -8,7 +8,6 @@ typedef struct {
   IoQueue* q;
   IoQueue* outq;
   LangCache* lang_cache;
-  char* cache_path;
 } WorkerArg;
 
 void* worker(void* arg);

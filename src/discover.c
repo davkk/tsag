@@ -11,11 +11,11 @@
 #include "lang.h"
 #include "strstack.h"
 
-const char* IGNORED_FILES[3] = {".git", "build"};
+static const char* IGNORED_FILES[] = {".git", "build"};
 
 static bool is_ignored(const char* path) {
   // TODO: add --exclude flag and add more dirs
-  for (size_t i = 0; i < 2; i++) {
+  for (size_t i = 0; i < sizeof(IGNORED_FILES) / sizeof(IGNORED_FILES[0]); i++) {
     if (strstr(path, IGNORED_FILES[i]) != NULL) return true;
   }
   return false;
