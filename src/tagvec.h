@@ -46,8 +46,7 @@ void tag_dedup_init(TagDedup* d);
 // On survive, *slot is vec_size (push) or the existing index (replace;
 // stored pattern already updated). Push path must call tag_dedup_track
 // after a successful push to record the new key.
-int tag_dedup_claim(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t vec_size,
-                    size_t* slot);
+int tag_dedup_claim(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t vec_size, size_t* slot);
 void tag_dedup_track(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t idx);
 void tag_vec_sort(TagVec* vec);
 void tag_vec_free(TagVec* vec);

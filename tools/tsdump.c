@@ -72,8 +72,7 @@ static void dump_node(TSNode node, const char* src, int depth, const char* field
   }
 }
 
-static void dump_tree(TSParser* parser, const TSLanguage* lang, const char* src,
-                      uint32_t src_len) {
+static void dump_tree(TSParser* parser, const TSLanguage* lang, const char* src, uint32_t src_len) {
   ts_parser_set_language(parser, lang);
   TSTree* tree = ts_parser_parse_string(parser, NULL, src, src_len);
   if (!tree) {
@@ -85,8 +84,8 @@ static void dump_tree(TSParser* parser, const TSLanguage* lang, const char* src,
   ts_tree_delete(tree);
 }
 
-static void run_query(TSQueryCursor* cursor, const TSQuery* query, const TSLanguage* lang,
-                      const char* src, uint32_t src_len) {
+static void run_query(TSQueryCursor* cursor, const TSQuery* query, const TSLanguage* lang, const char* src,
+                      uint32_t src_len) {
   TSParser* parser = ts_parser_new();
   ts_parser_set_language(parser, lang);
   TSTree* tree = ts_parser_parse_string(parser, NULL, src, src_len);
@@ -162,11 +161,9 @@ int main(int argc, char** argv) {
     }
     uint32_t error_offset = 0;
     TSQueryError error_type = TSQueryErrorNone;
-    TSQuery* query =
-        ts_query_new(entry->lang, q_src, (uint32_t)q_len, &error_offset, &error_type);
+    TSQuery* query = ts_query_new(entry->lang, q_src, (uint32_t)q_len, &error_offset, &error_type);
     if (!query) {
-      fprintf(stderr, "query compile failed at offset %u (error %d)\n", error_offset,
-              (int)error_type);
+      fprintf(stderr, "query compile failed at offset %u (error %d)\n", error_offset, (int)error_type);
       free(q_src);
       ts_parser_delete(parser);
       free(src);

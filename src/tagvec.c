@@ -46,8 +46,7 @@ void tag_dedup_init(TagDedup* d) {
   d->count = 0;
 }
 
-int tag_dedup_claim(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t vec_size,
-                    size_t* slot) {
+int tag_dedup_claim(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t vec_size, size_t* slot) {
   for (size_t k = 0; k < d->count; k++) {
     if (d->entries[k].start == start && d->entries[k].end == end) {
       if (pattern <= d->entries[k].pattern) return 0;

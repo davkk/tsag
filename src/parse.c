@@ -21,9 +21,7 @@ static char* read_file(const char* path, size_t* out_len) {
     close(fd);
     return NULL;
   }
-  if (!S_ISREG(sb.st_mode) ||
-      sb.st_size < 0 ||
-      (uintmax_t)sb.st_size > MAX_FILE_SIZE ||
+  if (!S_ISREG(sb.st_mode) || sb.st_size < 0 || (uintmax_t)sb.st_size > MAX_FILE_SIZE ||
       (uintmax_t)sb.st_size > SIZE_MAX - 1) {
     close(fd);
     return NULL;
@@ -158,8 +156,7 @@ static bool make_tag(const MatchInfo* m, const char* source, size_t src_len, cha
   return true;
 }
 
-int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor,
-               TagVec* vec) {
+int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, TagVec* vec) {
   const char* ext = find_extension(filepath);
   if (!ext) return 1;
 
