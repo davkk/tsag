@@ -38,13 +38,17 @@ typedef struct {
 TagVec* tag_vec_new(size_t cap);
 void tag_vec_add_path(TagVec* vec, char* path);
 void tag_vec_push(TagVec* vec, const Tag* tag);
+void tag_vec_replace(TagVec* vec, size_t idx, const Tag* tag);
 void tag_dedup_init(TagDedup* d);
 
-// Insert tag, deduping on (start, end): higher pattern_index wins.
-// Takes ownership of tag->name/pattern in all cases: pushes, replaces,
-// or frees them when the incoming match loses. Returns 1 if kept, 0 if dropped.
-int tag_vec_upsert(TagVec* vec, TagDedup* d, Tag* tag, uint32_t start, uint32_t end,
-                   uint32_t pattern);
+// Reserve a slot for (start, end, pattern) without allocating strings.
+// Returns 0 if this match loses and must be skipped, 1 if it survives.
+// On survive, *slot is vec_size (push) or the existing index (replace;
+// stored pattern already updated). Push path must call tag_dedup_track
+// after a successful push to record the new key.
+int tag_dedup_claim(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t vec_size,
+                    size_t* slot);
+void tag_dedup_track(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t idx);
 void tag_vec_sort(TagVec* vec);
 void tag_vec_free(TagVec* vec);
 

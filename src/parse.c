@@ -199,10 +199,19 @@ int parse_file(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor
     MatchInfo m;
     if (!extract_match(&match, entry->query, source, &m)) continue;
 
+    // Claim before allocating: drops never malloc.
+    size_t slot = 0;
+    if (!tag_dedup_claim(&seen, m.start, m.end, match.pattern_index, vec->size, &slot)) continue;
+
     Tag tag;
     if (!make_tag(&m, source, src_len, filepath, &tag)) continue;
 
-    tag_vec_upsert(vec, &seen, &tag, m.start, m.end, match.pattern_index);
+    if (slot == vec->size) {
+      tag_dedup_track(&seen, m.start, m.end, match.pattern_index, vec->size);
+      tag_vec_push(vec, &tag);
+    } else {
+      tag_vec_replace(vec, slot, &tag);
+    }
   }
 
   ts_tree_delete(tree);

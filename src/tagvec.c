@@ -46,34 +46,32 @@ void tag_dedup_init(TagDedup* d) {
   d->count = 0;
 }
 
-int tag_vec_upsert(TagVec* vec, TagDedup* d, Tag* tag, uint32_t start, uint32_t end,
-                   uint32_t pattern) {
-  size_t slot = vec->size;
+int tag_dedup_claim(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t vec_size,
+                    size_t* slot) {
   for (size_t k = 0; k < d->count; k++) {
     if (d->entries[k].start == start && d->entries[k].end == end) {
-      if (pattern <= d->entries[k].pattern) {
-        free(tag->name);
-        free(tag->pattern);
-        return 0;
-      }
-      slot = d->entries[k].idx;
+      if (pattern <= d->entries[k].pattern) return 0;
       d->entries[k].pattern = pattern;
-      break;
+      *slot = d->entries[k].idx;
+      return 1;
     }
   }
-
-  if (slot == vec->size) {
-    if (d->count < TAG_DEDUP_CAP) {
-      d->entries[d->count++] = (TagSeen){start, end, pattern, vec->size};
-    }
-    tag_vec_push(vec, tag);
-    return 1;
-  }
-
-  free(vec->tags[slot].name);
-  free(vec->tags[slot].pattern);
-  vec->tags[slot] = *tag;
+  *slot = vec_size;
   return 1;
+}
+
+void tag_dedup_track(TagDedup* d, uint32_t start, uint32_t end, uint32_t pattern, size_t idx) {
+  if (d->count < TAG_DEDUP_CAP) {
+    d->entries[d->count++] = (TagSeen){start, end, pattern, idx};
+  }
+}
+
+void tag_vec_replace(TagVec* vec, size_t idx, const Tag* tag) {
+  assert(vec && "vec is NULL");
+  assert(idx < vec->size && "replace index out of range");
+  free(vec->tags[idx].name);
+  free(vec->tags[idx].pattern);
+  vec->tags[idx] = *tag;
 }
 
 static int compare_tags(const void* a, const void* b) {
