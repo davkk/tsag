@@ -11,9 +11,9 @@
 const struct {
   const char* ext;
   const char* name;
-} EXT_LANG[] = {{"c", "c"},           {"h", "cpp"},     {"cpp", "cpp"}, {"cc", "cpp"},
-                {"hpp", "cpp"},       {"py", "python"}, {"lua", "lua"}, {"js", "javascript"},
-                {"ts", "typescript"}, {"zig", "zig"},   {"rs", "rust"}, {"go", "go"}};
+} EXT_LANG[] = {{"c", "c"},           {"h", "cpp"},   {"cpp", "cpp"},   {"cc", "cpp"},  {"hpp", "cpp"},
+                {"cu", "cpp"},        {"cuh", "cpp"}, {"py", "python"}, {"lua", "lua"}, {"js", "javascript"},
+                {"ts", "typescript"}, {"zig", "zig"}, {"rs", "rust"},   {"go", "go"}};
 
 const char* find_extension(const char* path) {
   const char* base = strrchr(path, '/');

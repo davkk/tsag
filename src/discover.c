@@ -11,12 +11,28 @@
 #include "lang.h"
 #include "strstack.h"
 
-static const char* IGNORED_FILES[] = {".git", "build"};
+static const char* IGNORED_FILES[] = {".git", "build", "dist"};
+// NOTE: node_modules, .venv, vendor/ are deliberately NOT ignored; they are
+// indexed on purpose (library definitions).
 
 static bool is_ignored(const char* path) {
   // TODO: add --exclude flag and add more dirs
-  for (size_t i = 0; i < sizeof(IGNORED_FILES) / sizeof(IGNORED_FILES[0]); i++) {
-    if (strstr(path, IGNORED_FILES[i]) != NULL) return true;
+  // Match whole path components only, so e.g. "build-xcframework.sh" and
+  // "a/distillery/x.c" are kept while "build/" and "a/dist/x.c" are pruned.
+  const char* p = path;
+  for (;;) {
+    while (*p == '/') p++;
+    if (*p == '\0') break;
+    const char* end = strchr(p, '/');
+    size_t len = end != NULL ? (size_t)(end - p) : strlen(p);
+    if (!(len == 1 && p[0] == '.')) {
+      for (size_t i = 0; i < sizeof(IGNORED_FILES) / sizeof(IGNORED_FILES[0]); i++) {
+        size_t ilen = strlen(IGNORED_FILES[i]);
+        if (len == ilen && strncmp(p, IGNORED_FILES[i], len) == 0) return true;
+      }
+    }
+    if (end == NULL) break;
+    p = end + 1;
   }
   return false;
 }
@@ -81,7 +97,7 @@ void enqueue_path(IoQueue* out_queue, const char* root) {
       }
       closedir(dir);
       free(path);
-    } else if (S_ISREG(info.st_mode)) { // is a regular file
+    } else if (S_ISREG(info.st_mode)) {
       const char* ext = find_extension(path);
       if (!ext) {
         free(path);
