@@ -28,7 +28,6 @@ int line_vec_push(LineVec* vec, char* line) {
     vec->items = items;
     vec->cap = new_cap;
   }
-  vec->bytes += strlen(line);
   vec->items[vec->len++] = line;
   return 1;
 }
@@ -36,9 +35,7 @@ int line_vec_push(LineVec* vec, char* line) {
 void line_vec_replace(LineVec* vec, size_t idx, char* line) {
   assert(vec && "vec is NULL");
   assert(idx < vec->len && "replace index out of range");
-  vec->bytes -= strlen(vec->items[idx]);
   free(vec->items[idx]);
-  vec->bytes += strlen(line);
   vec->items[idx] = line;
 }
 
@@ -57,7 +54,6 @@ void line_vec_uniq(LineVec* vec) {
   size_t w = 0;
   for (size_t r = 0; r < vec->len; r++) {
     if (w > 0 && strcmp(vec->items[r], vec->items[w - 1]) == 0) {
-      vec->bytes -= strlen(vec->items[r]);
       free(vec->items[r]);
       continue;
     }
@@ -72,7 +68,6 @@ void line_vec_clear(LineVec* vec) {
     free(vec->items[i]);
   }
   vec->len = 0;
-  vec->bytes = 0;
 }
 
 void line_vec_free(LineVec* vec) {

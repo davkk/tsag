@@ -12,6 +12,12 @@
 
 #define MAX_LINE_LEN 512
 #define MAX_FILE_SIZE (2UL * 1024 * 1024) // 2 MiB: skip huge/generated files
+// A source line longer than this marks the file as generated/minified:
+// skip before paying for tree-sitter. Real code stays far below it.
+#define MAX_SRC_LINE_LEN 4096
+// Hard bound on query matches examined per file. Real files produce
+// dozens; only generated blobs hit this, and their tags are junk.
+#define MAX_MATCHES_PER_FILE 4096
 
 static char* read_file(const char* path, size_t* out_len) {
   int fd = open(path, O_RDONLY);
@@ -42,6 +48,19 @@ static char* read_file(const char* path, size_t* out_len) {
   buf[got] = '\0';
   if (out_len) *out_len = got;
   return buf;
+}
+
+// True when any source line exceeds MAX_SRC_LINE_LEN: generated/minified.
+static bool has_long_line(const char* src, size_t len) {
+  size_t run = 0;
+  for (size_t i = 0; i < len; i++) {
+    if (src[i] == '\n') {
+      run = 0;
+      continue;
+    }
+    if (++run > MAX_SRC_LINE_LEN) return true;
+  }
+  return false;
 }
 
 static void line_range(const char* src, size_t src_len, uint32_t start, const char** out, size_t* out_len) {
@@ -162,11 +181,10 @@ static char* make_line(const MatchInfo* m, const char* source, size_t src_len, c
   return out;
 }
 
-// Parse one file, appending formatted lines. Flushes full batches to spill
-// runs mid-file, so one pathological file cannot grow memory without
+// Parse one file, appending formatted lines. Skips generated files and
+// caps matches so one pathological file cannot grow memory without
 // bound. Never retains filepath; the caller frees it after return.
-int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, LineVec* vec,
-                     Spill* spill) {
+int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQueryCursor* cursor, LineVec* vec) {
   const char* ext = find_extension(filepath);
   if (!ext) return 1;
 
@@ -186,6 +204,12 @@ int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQuery
     return 1;
   }
 
+  if (has_long_line(source, src_len)) {
+    fprintf(stderr, "skipping likely-generated file '%s': line over %d chars\n", filepath, MAX_SRC_LINE_LEN);
+    free(source);
+    return 1;
+  }
+
   TSTree* tree = ts_parser_parse_string(parser, NULL, source, (uint32_t)src_len);
   if (!tree) {
     fprintf(stderr, "Parsing failed for %s\n", filepath);
@@ -199,27 +223,16 @@ int parse_file_lines(char* filepath, LangCache* cache, TSParser* parser, TSQuery
   Dedup seen;
   dedup_init(&seen);
 
-  // Batching: flush BEFORE claim so table indices always refer to the
-  // current vec. Flush only on a key change: same-range matches from
-  // overlapping patterns arrive consecutively, so a key that leaves the
-  // batch never comes back and the post-flush table reset is exact.
-  uint32_t fstart = 0;
-  uint32_t fend = 0;
-  bool have_key = false;
-
+  size_t examined = 0;
   TSQueryMatch match;
   while (ts_query_cursor_next_match(cursor, &match)) {
+    if (++examined > MAX_MATCHES_PER_FILE) {
+      fprintf(stderr, "capping matches in '%s' at %d\n", filepath, MAX_MATCHES_PER_FILE);
+      break;
+    }
+
     MatchInfo m;
     if (!extract_match(&match, entry->query, source, &m)) continue;
-
-    if (have_key && vec->bytes >= spill->limit && (m.start != fstart || m.end != fend)) {
-      if (spill_flush(spill, vec)) dedup_init(&seen);
-      // On I/O error the vec is untouched: keep accumulating in memory
-      // rather than lose tags. Boundedness is best-effort from here.
-    }
-    fstart = m.start;
-    fend = m.end;
-    have_key = true;
 
     // Claim before allocating: drops never malloc.
     size_t slot = 0;

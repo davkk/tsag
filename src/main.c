@@ -1,13 +1,10 @@
 #include <assert.h>
 #include <errno.h>
-#include <libgen.h>
 #include <limits.h>
 #include <pthread.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include "discover.h"
@@ -23,38 +20,6 @@ int main(int argc, char** argv) {
   Options opts = {0};
   if (parse_options(argc, argv, &opts) != 0) {
     return 2;
-  }
-
-  // Spill runs dir for LineVec batching (see spill.h). Workers flush
-  // full batches to sorted run files here when over the byte limit.
-  char cwd[PATH_MAX];
-  if (!getcwd(cwd, sizeof(cwd))) {
-    fprintf(stderr, "getcwd: %s\n", strerror(errno));
-    return 1;
-  }
-  char* dirname = basename(cwd);
-  if (!dirname) {
-    fprintf(stderr, "basename failed\n");
-    return 1;
-  }
-
-  char* xdg_cache_dir = getenv("XDG_CACHE_HOME");
-  char base_cache_path[PATH_MAX];
-  int n = snprintf(base_cache_path, sizeof(base_cache_path), "%s/tsag", xdg_cache_dir ? xdg_cache_dir : "/tmp");
-  if (n < 0 || (size_t)n >= sizeof(base_cache_path)) {
-    fprintf(stderr, "base cache path too long\n");
-    return 1;
-  }
-  if (mkdir(base_cache_path, 0755) == -1 && errno != EEXIST) {
-    fprintf(stderr, "base cache dir '%s' creation failed: %s\n", base_cache_path, strerror(errno));
-    return 1;
-  }
-
-  char cache_path[PATH_MAX];
-  n = snprintf(cache_path, sizeof(cache_path), "%s/%s", base_cache_path, dirname ? dirname : "tmp");
-  if (n < 0 || (size_t)n >= sizeof(cache_path)) {
-    fprintf(stderr, "cache path too long\n");
-    return 1;
   }
 
   char* parsers_dir = getenv("TSAG_PARSERS");
@@ -118,27 +83,14 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  WorkerArg* wargs = malloc((size_t)jobs * sizeof(*wargs));
-  if (!wargs) {
-    fprintf(stderr, "out of memory\n");
-    free(threads);
-    io_queue_free(out_queue);
-    io_queue_free(queue);
-    if (out != stdout) fclose(out);
-    lang_cache_free(lang_cache);
-    return 1;
-  }
-  for (long i = 0; i < jobs; i++) {
-    wargs[i] = (WorkerArg){queue, out_queue, lang_cache, cache_path, (int)i};
-  }
+  WorkerArg worker_arg = {queue, out_queue, lang_cache};
 
   for (long i = 0; i < jobs; i++) {
-    int rc = pthread_create(&threads[i], NULL, worker, &wargs[i]);
+    int rc = pthread_create(&threads[i], NULL, worker, &worker_arg);
     if (rc) {
       fprintf(stderr, "Failed to create thread %ld\n", i);
       io_queue_close(queue);
       io_queue_close(out_queue);
-      free(wargs);
       free(threads);
       io_queue_free(out_queue);
       io_queue_free(queue);
@@ -148,9 +100,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  bool to_stdout = opts.output && strcmp(opts.output, "-") == 0;
-  MergeArg merge_arg = {out_queue, (int)jobs, out,
-                        to_stdout ? NULL : (opts.output ? opts.output : DEFAULT_OUTPUT_FILEPATH), cache_path};
+  MergeArg merge_arg = {out_queue, (int)jobs, out};
   pthread_t merge_thread;
   int merge_rc = pthread_create(&merge_thread, NULL, merge, &merge_arg);
   if (merge_rc) {
@@ -160,7 +110,6 @@ int main(int argc, char** argv) {
       pthread_join(threads[i], NULL);
     }
     io_queue_close(out_queue);
-    free(wargs);
     free(threads);
     io_queue_free(out_queue);
     io_queue_free(queue);
@@ -188,7 +137,6 @@ int main(int argc, char** argv) {
   io_queue_close(out_queue);
   pthread_join(merge_thread, NULL);
 
-  free(wargs);
   free(threads);
   io_queue_free(out_queue);
   io_queue_free(queue);

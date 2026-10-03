@@ -7,13 +7,11 @@
 // A tag is a fully formatted, owned output line:
 //   "name\tfile\t/^pattern$/;\"\tkind\n"
 // Single ownership (free each line) replaces Tag's mixed owned/borrowed
-// fields, so a vec can be sorted, passed across threads, and later
-// flushed to a spill run file as-is.
+// fields, so a vec is trivial to sort, uniq, and pass across threads.
 typedef struct {
   char** items; // owned lines
   size_t len;
   size_t cap;
-  size_t bytes; // sum of strlen(items), excl. NULs; for spill budgeting
 } LineVec;
 
 // Per-file dedup: same byte range keeps the higher pattern_index.

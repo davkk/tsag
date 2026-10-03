@@ -30,10 +30,12 @@ orientation; no file or line references are kept here on purpose
   |    ext = after last '.'  ------+-- none ----> skip, free path |
   |    entry = cache.get(ext) -----+-- unknown --> skip, free path |
   |    set_language(entry.lang)     # EVERY file, no fast path    |
-  |    src = read whole file       # malloc(n+1); fail -> skip    |
+  |    src = read whole file       # malloc(n+1); fail/skips: 2MiB cap |
+  |    skip generated? ------------+-> long line (>4096) --> skip, no  |
+  |                                 |   parse cost at all              |
   |    tree = parse_string(src)                                       |
   |    cursor.exec(entry.query, root)                                 |
-  |    for each match:                                                |
+  |    for each match (cap 4096/file):                                |
   |      claim(seen, range, pat) --> drop? skip BEFORE any malloc     |
   |      @name + @kind.* --> line "name\tfile\t/^pat$/;\"\tkind\n"  |
   |      (filepath copied; nothing borrowed)                         |
